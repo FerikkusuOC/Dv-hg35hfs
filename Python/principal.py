@@ -5,42 +5,24 @@ import gc
 import concurrent.futures
 import sys
 import requests
+import subprocess
 from moviepy.editor import AudioFileClip, CompositeAudioClip, CompositeVideoClip
 
 from configuracoes import *
 from agentes_texto import transcrever_e_direcionar
 from extrator_imagens import pre_buscar_urls, baixar_candidatos
 from agente_visao import escolher_imagem_ia_base64, gerar_grid_3x3_base64, analisar_ponto_focal
-from motor_video import aplicar_animacao_inteligente, processar_musicas
-# CÉLULA 5: IGNIÇÃO BLINDADA (VERIFICA OLLAMA + RODA O VÍDEO)
-import subprocess
-import time
-import requests
-
-def garantir_ollama_ligado():
-    print("[SISTEMA] Verificando status do motor Ollama...")
-    try:
-        requests.get("http://127.0.0.1:11434/", timeout=2)
-        print("✅ Ollama já está rodando em segundo plano!")
-    except:
-        print("⚙️ Ollama estava desligado. Dando a partida no servidor...")
-        # Liga o servidor silenciosamente e joga os logs pro vazio para não poluir a tela
-        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(4) # Tempo para o servidor aquecer
-        print("✅ Ollama ligado com sucesso!")
-
-# Executa a verificação
-garantir_ollama_ligado()
-
-# Dispara a orquestração de edição
-print("\n🚀 INICIANDO O MAESTRO...\n")
-!python principal.py
+from motor_video import aplicar_animacao_inteligente
+from escolha_musica import processar_musicas
 
 # --- BLINDAGEM DE DIRETÓRIOS ---
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
 DIRETORIO_RAIZ_PROJETO = os.path.dirname(DIRETORIO_ATUAL)
-PASTA_SAIDA_PROJETO = os.path.join(DIRETORIO_RAIZ_PROJETO, "Saída")
+# Ajuste para garantir que funcione se rodado diretamente na raiz do Colab
+if not os.path.exists(os.path.join(DIRETORIO_RAIZ_PROJETO, "Entrada")):
+    DIRETORIO_RAIZ_PROJETO = DIRETORIO_ATUAL
 
+PASTA_SAIDA_PROJETO = os.path.join(DIRETORIO_RAIZ_PROJETO, "Saída")
 ARQUIVO_ESTADO = os.path.join(DIRETORIO_ATUAL, "estado_projeto.json")
 VIDEO_FINAL = os.path.join(PASTA_SAIDA_PROJETO, "video_pronto.mp4")
 TRILHA_FINAL = os.path.join(PASTA_SAIDA_PROJETO, "trilha_sonora_bgm.mp3")
@@ -52,20 +34,49 @@ def descarregar_modelo_ollama(nome_modelo):
 
 def limpar_pastas_imagens():
     for pasta in ['temp_imagens', 'imagens_finais']:
-        if os.path.exists(pasta):
-            for f in os.listdir(pasta):
-                try: os.remove(os.path.join(pasta, f))
+        caminho_completo = os.path.join(DIRETORIO_RAIZ_PROJETO, pasta)
+        if os.path.exists(caminho_completo):
+            for f in os.listdir(caminho_completo):
+                try: os.remove(os.path.join(caminho_completo, f))
                 except: pass
 
 def contar_grids_prontos():
-    pasta = "temp_imagens" 
+    pasta = os.path.join(DIRETORIO_RAIZ_PROJETO, "temp_imagens")
     if not os.path.exists(pasta): return 0
     return len([f for f in os.listdir(pasta) if f.endswith("_grid.txt")])
+
+def garantir_modelos_baixados():
+    print("\n[SISTEMA] Mapeando hardware e verificando modelos locais...")
+    vram, ram = obter_recursos_sistema()
+    
+    # O Orquestrador descobre sozinho quais modelos as funções de hardware escolheram
+    mod_jun = escolher_modelo_junior(vram, ram)
+    mod_sen = escolher_modelo_senior(vram, ram)
+    mod_vis = "qwen3-vl:8b" 
+    
+    # Remove duplicatas caso o Júnior e o Sênior usem o mesmo modelo
+    modelos_necessarios = list(set([mod_jun, mod_sen, mod_vis]))
+    
+    print(f"[STATUS] Modelos exigidos pela sua máquina (VRAM Livre: {vram:.1f}GB):")
+    for m in modelos_necessarios:
+        print(f" -> {m}")
+        
+    for modelo in modelos_necessarios:
+        try:
+            print(f" [Download] Verificando integridade de '{modelo}' (Isso pode demorar alguns minutos na primeira vez)...")
+            # Chama o comando do terminal silenciosamente. Se já tiver baixado, ele pula em 1 segundo.
+            subprocess.run(["ollama", "pull", modelo], check=True, stdout=subprocess.DEVNULL)
+        except Exception as e:
+            print(f" [ERRO] Falha ao baixar o modelo {modelo}: {e}")
+            
+    print("[SISTEMA] Todos os modelos estão cacheados e prontos para uso na GPU!\n")
 
 def main():
     print("===================================================")
     print("      MAESTRO V4.0 (ORQUESTRADOR HÍBRIDO)          ")
     print("===================================================")
+
+    garantir_modelos_baixados()
 
     print("\n===================================================")
     print("   SISTEMA DE RECUPERAÇÃO DE ESTADO (CAIXA PRETA)")
@@ -104,18 +115,10 @@ def main():
             futuros = [executor.submit(worker_radar, i, c) for i, c in enumerate(cenas_visuais)]
             for _ in concurrent.futures.as_completed(futuros): pass
                 
-        # --- ACELERADOR FIXO NO CHÃO (Sem Limites de Internet) ---
+        # --- ACELERADOR FIXO NO CHÃO ---
         cenas_simultaneas = 10 
         
-        print("\n[SISTEMA] Acordando o Robô Gerador de Grids em um novo terminal...")
-        try:
-            caminho_robo = os.path.join(DIRETORIO_ATUAL, "gerador_grids.py")
-            subprocess.Popen([sys.executable, caminho_robo], creationflags=subprocess.CREATE_NEW_CONSOLE)
-            time.sleep(2) 
-        except Exception as e:
-            print(f"[AVISO] Não foi possível abrir o terminal 2: {e}")
-        
-        print(f"\n[2.1/5] Mineração Paralela -> {cenas_simultaneas} workers baixando imagens SIMULTANEAMENTE...")
+        print(f"\n[2.1/5] Mineração Paralela -> {cenas_simultaneas} workers baixando imagens e montando grids SIMULTANEAMENTE...")
         def processar_cena_mineracao(i, cena):
             baixar_candidatos(cena.get('query', 'Naruto anime'), i, cena.get('urls_pre_carregadas', []))
 
@@ -123,16 +126,17 @@ def main():
             futuros = [executor.submit(processar_cena_mineracao, i, cena) for i, cena in enumerate(cenas_visuais)]
             for _ in concurrent.futures.as_completed(futuros): pass 
 
-    print("\n[2.1.5/5] Sincronização: Aguardando o Robô Gerador de Grids finalizar a montagem...")
+    print("\n[2.1.5/5] Sincronização: Aguardando finalização...")
     while len(cenas_visuais) > contar_grids_prontos():
         time.sleep(1)
     print(" -> Sincronização concluída! Todos os grids carregados para a RAM.")
 
     print("\n[2.2/5] Curadoria de Imagens (LLM Local em Rajada)...")
     for i, cena in enumerate(cenas_visuais):
-        caminho_txt = f"temp_imagens/cena_{i:03d}_grid.txt"
-        with open(caminho_txt, 'r', encoding='utf-8') as f:
-            cena['grid_b64'] = f.read()
+        caminho_txt = os.path.join(DIRETORIO_RAIZ_PROJETO, f"temp_imagens/cena_{i:03d}_grid.txt")
+        if os.path.exists(caminho_txt):
+            with open(caminho_txt, 'r', encoding='utf-8') as f:
+                cena['grid_b64'] = f.read()
             
     def orquestrar_curadoria(cena):
         if cena.get('grid_b64'):
@@ -146,18 +150,18 @@ def main():
     print("\n[2.3/5] Limpeza de Lixo e Consolidação Visual...")
     for i, cena in enumerate(cenas_visuais):
         vencedor = cena.get('candidato_vencedor', 1)
-        img_final = f"imagens_finais/cena_{i:03d}.jpg"
-        img_escolhida = f"temp_imagens/cena_{i:03d}_cand_{vencedor}.jpg"
+        img_final = os.path.join(DIRETORIO_RAIZ_PROJETO, f"imagens_finais/cena_{i:03d}.jpg")
+        img_escolhida = os.path.join(DIRETORIO_RAIZ_PROJETO, f"temp_imagens/cena_{i:03d}_cand_{vencedor}.jpg")
         
         if os.path.exists(img_escolhida): os.rename(img_escolhida, img_final)
         
         for j in range(1, 6):
-            cand = f"temp_imagens/cena_{i:03d}_cand_{j}.jpg"
+            cand = os.path.join(DIRETORIO_RAIZ_PROJETO, f"temp_imagens/cena_{i:03d}_cand_{j}.jpg")
             if os.path.exists(cand): os.remove(cand)
         
-        flag = f"temp_imagens/cena_{i:03d}_ok.flag"
+        flag = os.path.join(DIRETORIO_RAIZ_PROJETO, f"temp_imagens/cena_{i:03d}_ok.flag")
         if os.path.exists(flag): os.remove(flag)
-        txt = f"temp_imagens/cena_{i:03d}_grid.txt"
+        txt = os.path.join(DIRETORIO_RAIZ_PROJETO, f"temp_imagens/cena_{i:03d}_grid.txt")
         if os.path.exists(txt): os.remove(txt)
             
         if 'grid_b64' in cena: del cena['grid_b64']
@@ -170,7 +174,7 @@ def main():
     print("\n[2.5/5] Analisando Enquadramento Inteligente (Visão Paralela)...")
     
     def orquestrar_foco(cena, i):
-        img_final = f"imagens_finais/cena_{i:03d}.jpg"
+        img_final = os.path.join(DIRETORIO_RAIZ_PROJETO, f"imagens_finais/cena_{i:03d}.jpg")
         if os.path.exists(img_final):
             img_b64_com_grid = gerar_grid_3x3_base64(img_final)
             if img_b64_com_grid:
@@ -190,7 +194,7 @@ def main():
     descarregar_modelo_ollama("qwen3-vl:8b") 
     print("\n[3/5] Montando a Timeline (Animação Inteligente Absoluta)...")
     for i, cena in enumerate(cenas_visuais):
-        img_final = f"imagens_finais/cena_{i:03d}.jpg"
+        img_final = os.path.join(DIRETORIO_RAIZ_PROJETO, f"imagens_finais/cena_{i:03d}.jpg")
         if os.path.exists(img_final):
             inicio_cena = cena.get('inicio', 0.0)
             duracao = cena.get('fim', 0.0) - inicio_cena
