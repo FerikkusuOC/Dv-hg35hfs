@@ -12,6 +12,29 @@ from agentes_texto import transcrever_e_direcionar
 from extrator_imagens import pre_buscar_urls, baixar_candidatos
 from agente_visao import escolher_imagem_ia_base64, gerar_grid_3x3_base64, analisar_ponto_focal
 from motor_video import aplicar_animacao_inteligente, processar_musicas
+# CÉLULA 5: IGNIÇÃO BLINDADA (VERIFICA OLLAMA + RODA O VÍDEO)
+import subprocess
+import time
+import requests
+
+def garantir_ollama_ligado():
+    print("[SISTEMA] Verificando status do motor Ollama...")
+    try:
+        requests.get("http://127.0.0.1:11434/", timeout=2)
+        print("✅ Ollama já está rodando em segundo plano!")
+    except:
+        print("⚙️ Ollama estava desligado. Dando a partida no servidor...")
+        # Liga o servidor silenciosamente e joga os logs pro vazio para não poluir a tela
+        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(4) # Tempo para o servidor aquecer
+        print("✅ Ollama ligado com sucesso!")
+
+# Executa a verificação
+garantir_ollama_ligado()
+
+# Dispara a orquestração de edição
+print("\n🚀 INICIANDO O MAESTRO...\n")
+!python principal.py
 
 # --- BLINDAGEM DE DIRETÓRIOS ---
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
