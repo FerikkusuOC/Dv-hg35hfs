@@ -9,7 +9,7 @@ import base64
 import urllib3
 import json
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -37,7 +37,6 @@ def simplificar_query(texto):
 def buscar_serper(termo, chave):
     url = "https://google.serper.dev/images"
     headers = {'X-API-KEY': chave, 'Content-Type': 'application/json'}
-    # num: 50 (Tiro de espingarda para garantir 5 links válidos rapidamente) | tbs: isz:l (HD)
     payload = json.dumps({"q": termo, "num": 50, "tbs": "isz:l"})
     try:
         res = requests.post(url, headers=headers, data=payload, timeout=15)
@@ -49,7 +48,6 @@ def buscar_serper(termo, chave):
 
 def buscar_apify(termo, chave):
     url = f"https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token={chave}"
-    # Pedimos 50 resultados aqui também
     payload = {"searchType": "image", "queries": termo + " high resolution", "maxPagesPerQuery": 1, "resultsPerPage": 50}
     try:
         res = requests.post(url, json=payload, timeout=25)
@@ -61,7 +59,6 @@ def buscar_apify(termo, chave):
     return None
 
 def buscar_nativo(termo):
-    # Fila indiana para não tomar bloqueio de IP do DuckDuckGo
     with lock_ddg:
         time.sleep(1.0)
         try:
@@ -80,7 +77,6 @@ def pre_buscar_urls(texto_busca, indice_cena):
     for termo in termos_tentativa:
         if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: Iniciando busca para '{termo}'...")
         
-        # 1. SERPER (O Rei da Velocidade voltou ao topo)
         if SERPER_KEYS:
             for idx, chave in enumerate(SERPER_KEYS, 1):
                 if chave in CHAVES_ESGOTADAS['serper'] or not chave: continue
@@ -94,7 +90,6 @@ def pre_buscar_urls(texto_busca, indice_cena):
                     if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: ✅ SERPER encontrou {len(resultado)} links HD!")
                     return (resultado, f"SERPER ({idx}/{total_serper})")
 
-        # 2. APIFY (Backup Robusto em Nuvem)
         if APIFY_KEYS:
             for idx, chave in enumerate(APIFY_KEYS, 1):
                 if chave in CHAVES_ESGOTADAS['apify'] or not chave: continue
@@ -108,7 +103,6 @@ def pre_buscar_urls(texto_busca, indice_cena):
                     if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: ✅ APIFY encontrou {len(resultado)} links HD!")
                     return (resultado, f"APIFY ({idx}/{total_apify})")
 
-        # 3. DUCKDUCKGO (Segurança Nativa)
         if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: ↳ [Motor 3] Acionando DUCKDUCKGO Nativo...")
         resultado = buscar_nativo(termo)
         if resultado and len(resultado) > 0:
@@ -174,6 +168,50 @@ async def orquestrar_downloads_async(urls, indice_cena, imagens_salvas, lock_sal
             await tarefa
             if len(imagens_salvas) >= 5: break
 
+# --- NOVA FUNÇÃO INJETADA: MONTAGEM DO GRID ---
+def criar_e_salvar_grid(indice_cena, imagens_salvas):
+    canvas = Image.new('RGB', (1200, 800), color='black')
+    coords = [(0, 0), (400, 0), (800, 0), (0, 400), (400, 400)]
+    try: fonte = ImageFont.truetype("arial.ttf", 60)
+    except: fonte = ImageFont.load_default()
+    draw = ImageDraw.Draw(canvas)
+
+    for i in range(5):
+        if i < len(imagens_salvas):
+            caminho_cand = imagens_salvas[i]
+        else:
+            caminho_cand = None
+
+        try:
+            img = Image.open(caminho_cand)
+            img.load() 
+            img = img.convert('RGB')
+        except:
+            img = Image.new('RGB', (400, 400), color='#1a1a1a')
+            
+        aspect = img.width / img.height
+        if aspect > 1:
+            nw = int(400 * aspect)
+            img = img.resize((nw, 400), Image.NEAREST).crop(((nw - 400) / 2, 0, (nw - 400) / 2 + 400, 400))
+        else:
+            nh = int(400 / aspect)
+            img = img.resize((400, nh), Image.NEAREST).crop((0, (nh - 400) / 2, 400, (nh - 400) / 2 + 400))
+            
+        canvas.paste(img, coords[i])
+        x, y = coords[i]
+        draw.rectangle([x, y, x+60, y+60], fill="black")
+        draw.text((x+15, y+5), str(i+1), fill="white", font=fonte)
+        
+    buffer = BytesIO()
+    canvas.save(buffer, format="JPEG", quality=70)
+    b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    arquivo_grid = f"temp_imagens/cena_{indice_cena:03d}_grid.txt"
+    with open(arquivo_grid, 'w', encoding='utf-8') as f:
+        f.write(b64)
+    if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: Grid gerado em Base64 com sucesso!")
+# ----------------------------------------------
+
 def baixar_candidatos(texto_busca, indice_cena, urls_pre_carregadas=None):
     imagens_salvas = []
     termo = texto_busca.split(',')[0].strip()
@@ -200,6 +238,8 @@ def baixar_candidatos(texto_busca, indice_cena, urls_pre_carregadas=None):
                     options.add_argument('--window-size=1920,1080') 
                     options.add_argument('--disable-gpu')
                     options.add_argument('--no-sandbox')
+                    options.add_argument('--mute-audio')
+                    options.add_argument('--log-level=3')
                     driver = uc.Chrome(options=options)
                     driver.set_page_load_timeout(15)
 
@@ -245,7 +285,7 @@ def baixar_candidatos(texto_busca, indice_cena, urls_pre_carregadas=None):
     except Exception as e:
         if DEBUG_MODE: print(f"      [ERRO CRÍTICO] Falha cena {indice_cena:03d}: {e}")
     finally:
-        with open(f"temp_imagens/cena_{indice_cena:03d}_ok.flag", 'w') as f:
-            f.write('ok')
+        # Chama a função nativa recém injetada em vez de criar o .flag!
+        criar_e_salvar_grid(indice_cena, imagens_salvas)
             
     return True
