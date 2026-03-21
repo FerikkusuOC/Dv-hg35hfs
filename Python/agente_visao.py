@@ -61,12 +61,10 @@ def gerar_grid_3x3_base64(caminho_imagem):
 
 def esmagar_base64_existente(b64_string):
     try:
-        # 1. LIMPEZA: Remove sujeiras do .txt que fazem o b64decode quebrar
         b64_limpo = b64_string.replace('\n', '').replace('\r', '').strip()
         if "," in b64_limpo:
             b64_limpo = b64_limpo.split(",")[-1]
             
-        # Repara o padding caso o arquivo texto tenha cortado o final
         padding = len(b64_limpo) % 4
         if padding > 0:
             b64_limpo += '=' * (4 - padding)
@@ -74,7 +72,6 @@ def esmagar_base64_existente(b64_string):
         img_bytes = base64.b64decode(b64_limpo)
         img = Image.open(BytesIO(img_bytes)).convert('RGB')
         
-        # 2. REDUÇÃO DRÁSTICA: De 1200x800 para 480x320 (Mesmo peso matemático do Foco)
         img = img.resize((480, 320), Image.NEAREST)
         buffer = BytesIO()
         img.save(buffer, format="JPEG", quality=40)
@@ -112,10 +109,12 @@ def escolher_imagem_ia_base64(query, b64_img):
 
     for tentativa in range(2):
         try:
-            # 60 segundos de fôlego para evitar o Timeout prematuro
             res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=60)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
+                
+                # RESTAURADO: Print da resposta bruta para termos certeza de que a IA falou!
+                if DEBUG_MODE: print(f"      [DEBUG] [Visão Curadoria] Resposta bruta da IA: '{resposta_ia}'")
                 
                 numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=1)
                 
@@ -123,7 +122,9 @@ def escolher_imagem_ia_base64(query, b64_img):
                     if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Alucinação detetada na curadoria. A acionar protocolo de segurança (Tentativa {tentativa+1}/2)")
                     resetar_modelo_seguro()
                     continue
-                    
+                
+                # RESTAURADO: Print do veredito final!
+                if DEBUG_MODE: print(f"      [DEBUG] [Visão Curadoria] ✅ Veredito para '{query}': Imagem {numeros_encontrados[0]}")
                 return numeros_encontrados[0]
             else:
                 time.sleep(1)
@@ -131,7 +132,7 @@ def escolher_imagem_ia_base64(query, b64_img):
             if DEBUG_MODE: print(f"      [DEBUG] [Erro Visão Curadoria] Falha com Ollama: {e}")
             resetar_modelo_seguro()
             
-    if DEBUG_MODE: print("      [DEBUG] [Fallback] IA incapaz de decidir após 2 tentativas. Imagem 1 assumida.")
+    if DEBUG_MODE: print(f"      [DEBUG] [Fallback] IA incapaz de decidir após 2 tentativas para '{query}'. Imagem 1 assumida.")
     return 1
 
 def analisar_ponto_focal(b64_img, texto_cena, query):
@@ -158,6 +159,8 @@ def analisar_ponto_focal(b64_img, texto_cena, query):
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
                 
+                if DEBUG_MODE: print(f"      [DEBUG] [Visão Focal] Resposta bruta: '{resposta_ia}'")
+                
                 numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=3)
                 
                 if "!!!" in resposta_ia or not numeros_encontrados:
@@ -165,7 +168,7 @@ def analisar_ponto_focal(b64_img, texto_cena, query):
                     resetar_modelo_seguro()
                     continue
                     
-                if DEBUG_MODE: print(f"      [DEBUG] [Visão Focal] Alvo trancado nos quadros: {numeros_encontrados}")
+                if DEBUG_MODE: print(f"      [DEBUG] [Visão Focal] ✅ Alvo trancado nos quadros: {numeros_encontrados}")
                 return numeros_encontrados
             else:
                 time.sleep(1)
