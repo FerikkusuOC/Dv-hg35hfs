@@ -26,7 +26,7 @@ def escolher_imagem_ia_base64(query_cena, img_b64):
     for tentativa in range(max_tentativas):
         try:
             payload = {
-                "model": "qwen3-vl:8b",
+                "model": "qwen2.5vl:3b",
                 "messages": [{"role": "user", "content": prompt_visao, "images": [img_b64]}],
                 "stream": False, "keep_alive": "5m", "options": {"temperature": 0.0}
             }
@@ -91,7 +91,7 @@ def analisar_ponto_focal(img_b64_com_grid, texto_cena, query):
     for tentativa in range(2):
         try:
             payload = {
-                "model": "qwen3-vl:8b",
+                "model": "qwen2.5vl:3b",
                 "messages": [{"role": "user", "content": prompt, "images": [img_b64_com_grid]}],
                 "stream": False, "keep_alive": "5m", "options": {"temperature": 0.0, "num_predict": 30}
             }
