@@ -18,7 +18,6 @@ from escolha_musica import processar_musicas
 # --- BLINDAGEM DE DIRETÓRIOS ---
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
 DIRETORIO_RAIZ_PROJETO = os.path.dirname(DIRETORIO_ATUAL)
-# Ajuste para garantir que funcione se rodado diretamente na raiz do Colab
 if not os.path.exists(os.path.join(DIRETORIO_RAIZ_PROJETO, "Entrada")):
     DIRETORIO_RAIZ_PROJETO = DIRETORIO_ATUAL
 
@@ -40,34 +39,23 @@ def limpar_pastas_imagens():
                 try: os.remove(os.path.join(caminho_completo, f))
                 except: pass
 
-def contar_grids_prontos():
-    pasta = os.path.join(DIRETORIO_RAIZ_PROJETO, "temp_imagens")
-    if not os.path.exists(pasta): return 0
-    return len([f for f in os.listdir(pasta) if f.endswith("_grid.txt")])
-
 def garantir_modelos_baixados():
     print("\n[SISTEMA] Mapeando hardware e verificando modelos locais...")
     vram, ram = obter_recursos_sistema()
-    
-    # O Orquestrador descobre sozinho quais modelos as funções de hardware escolheram
     mod_jun = escolher_modelo_junior(vram, ram)
     mod_sen = escolher_modelo_senior(vram, ram)
     mod_vis = "qwen3-vl:8b" 
     
-    # Remove duplicatas caso o Júnior e o Sênior usem o mesmo modelo
     modelos_necessarios = list(set([mod_jun, mod_sen, mod_vis]))
     
     print(f"[STATUS] Modelos exigidos pela sua máquina (VRAM Livre: {vram:.1f}GB):")
-    for m in modelos_necessarios:
-        print(f" -> {m}")
+    for m in modelos_necessarios: print(f" -> {m}")
         
     for modelo in modelos_necessarios:
         try:
-            print(f" [Download] Verificando integridade de '{modelo}' (Isso pode demorar alguns minutos na primeira vez)...")
-            # Chama o comando do terminal silenciosamente. Se já tiver baixado, ele pula em 1 segundo.
             subprocess.run(["ollama", "pull", modelo], check=True, stdout=subprocess.DEVNULL)
         except Exception as e:
-            print(f" [ERRO] Falha ao baixar o modelo {modelo}: {e}")
+            pass
             
     print("[SISTEMA] Todos os modelos estão cacheados e prontos para uso na GPU!\n")
 
@@ -115,21 +103,16 @@ def main():
             futuros = [executor.submit(worker_radar, i, c) for i, c in enumerate(cenas_visuais)]
             for _ in concurrent.futures.as_completed(futuros): pass
                 
-        # --- ACELERADOR FIXO NO CHÃO ---
         cenas_simultaneas = 10 
         
         print(f"\n[2.1/5] Mineração Paralela -> {cenas_simultaneas} workers baixando imagens e montando grids SIMULTANEAMENTE...")
         def processar_cena_mineracao(i, cena):
             baixar_candidatos(cena.get('query', 'Naruto anime'), i, cena.get('urls_pre_carregadas', []))
 
+        # A execução só passa para a Fase 2.2 quando TODOS os workers finalizarem!
         with concurrent.futures.ThreadPoolExecutor(max_workers=cenas_simultaneas) as executor:
             futuros = [executor.submit(processar_cena_mineracao, i, cena) for i, cena in enumerate(cenas_visuais)]
             for _ in concurrent.futures.as_completed(futuros): pass 
-
-    print("\n[2.1.5/5] Sincronização: Aguardando finalização...")
-    while len(cenas_visuais) > contar_grids_prontos():
-        time.sleep(1)
-    print(" -> Sincronização concluída! Todos os grids carregados para a RAM.")
 
     print("\n[2.2/5] Curadoria de Imagens (LLM Local em Rajada)...")
     for i, cena in enumerate(cenas_visuais):
