@@ -18,14 +18,12 @@ from duckduckgo_search import DDGS
 
 from configuracoes import *
 
-# Suprime avisos de conexões não seguras ao forçar downloads
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 lock_chaves = threading.Lock()
 lock_chromium = threading.Lock()
-lock_ddg = threading.Lock() # O pedágio anti-ban do motor gratuito
+lock_ddg = threading.Lock() 
 
-# --- DICIONÁRIO GLOBAL DE CHAVES QUEIMADAS ---
 CHAVES_ESGOTADAS = {'apify': set(), 'serper': set()}
 
 def simplificar_query(texto):
@@ -109,8 +107,6 @@ def pre_buscar_urls(texto_busca, indice_cena):
             if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: ✅ DUCKDUCKGO encontrou {len(resultado)} links HD!")
             return (resultado, "DUCKDUCKGO")
 
-        if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: Termo '{termo}' esgotou todas as APIs. Simplificando...")
-
     return ([], "NENHUM")
 
 async def worker_download(session, url, indice_cena, imagens_salvas, lock_salvamento):
@@ -130,9 +126,8 @@ async def worker_download(session, url, indice_cena, imagens_salvas, lock_salvam
 
     img_data = None
     headers_blindados = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        'Referer': 'https://www.google.com/'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
     }
 
     try:
@@ -168,7 +163,6 @@ async def orquestrar_downloads_async(urls, indice_cena, imagens_salvas, lock_sal
             await tarefa
             if len(imagens_salvas) >= 5: break
 
-# --- NOVA FUNÇÃO INJETADA: MONTAGEM DO GRID ---
 def criar_e_salvar_grid(indice_cena, imagens_salvas):
     canvas = Image.new('RGB', (1200, 800), color='black')
     coords = [(0, 0), (400, 0), (800, 0), (0, 400), (400, 400)]
@@ -177,10 +171,7 @@ def criar_e_salvar_grid(indice_cena, imagens_salvas):
     draw = ImageDraw.Draw(canvas)
 
     for i in range(5):
-        if i < len(imagens_salvas):
-            caminho_cand = imagens_salvas[i]
-        else:
-            caminho_cand = None
+        caminho_cand = imagens_salvas[i] if i < len(imagens_salvas) else None
 
         try:
             img = Image.open(caminho_cand)
@@ -209,8 +200,6 @@ def criar_e_salvar_grid(indice_cena, imagens_salvas):
     arquivo_grid = f"temp_imagens/cena_{indice_cena:03d}_grid.txt"
     with open(arquivo_grid, 'w', encoding='utf-8') as f:
         f.write(b64)
-    if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: Grid gerado em Base64 com sucesso!")
-# ----------------------------------------------
 
 def baixar_candidatos(texto_busca, indice_cena, urls_pre_carregadas=None):
     imagens_salvas = []
@@ -225,13 +214,13 @@ def baixar_candidatos(texto_busca, indice_cena, urls_pre_carregadas=None):
             urls_agora, motor_usado = pre_buscar_urls(texto_busca, indice_cena)
         
         if urls_agora:
-            if DEBUG_MODE: print(f"\n      [STATUS] Cena {indice_cena:03d}: Extraindo 5 imagens do banco [{motor_usado}]...")
+            if DEBUG_MODE: print(f"\n      [STATUS] Cena {indice_cena:03d}: Extraindo 5 imagens via [{motor_usado}]...")
             asyncio.run(orquestrar_downloads_async(urls_agora, indice_cena, imagens_salvas, lock_salvamento))
 
         if len(imagens_salvas) < 5:
             driver = None
             with lock_chromium: 
-                if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: Imagens insuficientes. Acionando Chrome (Plano Z)...")
+                if DEBUG_MODE: print(f"      [DEBUG] Cena {indice_cena:03d}: Acionando Chrome (Plano Z)...")
                 try:
                     options = uc.ChromeOptions()
                     options.add_argument('--headless=new')
@@ -285,7 +274,6 @@ def baixar_candidatos(texto_busca, indice_cena, urls_pre_carregadas=None):
     except Exception as e:
         if DEBUG_MODE: print(f"      [ERRO CRÍTICO] Falha cena {indice_cena:03d}: {e}")
     finally:
-        # Chama a função nativa recém injetada em vez de criar o .flag!
         criar_e_salvar_grid(indice_cena, imagens_salvas)
             
     return True
