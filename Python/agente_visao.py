@@ -1,123 +1,165 @@
-import json
+import base64
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+import requests
 import re
 import time
-import requests
-import base64
-from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
+import threading
+from configuracoes import DEBUG_MODE
 
-from configuracoes import *
+MODELO_VISAO = "qwen2.5vl:3b"
 
-def codificar_imagem_base64_comprimida(caminho_imagem):
-    img = Image.open(caminho_imagem)
-    if img.mode in ('RGBA', 'P'):
-        img = img.convert('RGB')
-    img.thumbnail((600, 600)) 
-    buffer = BytesIO()
-    img.save(buffer, format="JPEG", quality=70) 
-    return base64.b64encode(buffer.getvalue()).decode('utf-8')
+lock_reset = threading.Lock()
+ultimo_reset = 0.0
 
-def escolher_imagem_ia_base64(query_cena, img_b64):
-    prompt_visao = f"You are a strict image classifier. Look at the numbered grid. Which image number (1, 2, 3, 4, or 5) best matches the description '{query_cena}'? Output exactly ONE single digit and absolutely nothing else."
-    
-    if DEBUG_MODE: print(f"      [DEBUG] [Visão Curadoria] A analisar grelha para '{query_cena}'...")
-    max_tentativas = 2
-    
-    for tentativa in range(max_tentativas):
-        try:
-            payload = {
-                "model": "qwen2.5vl:3b",
-                "messages": [{"role": "user", "content": prompt_visao, "images": [img_b64]}],
-                "stream": False, "keep_alive": "5m", "options": {"temperature": 0.0}
-            }
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=120)
-            
-            # Se o Ollama der qualquer erro (Ex: 404 Model Not Found), ele IMPRIME NA TELA agora!
-            if res.status_code != 200:
-                print(f"      [ERRO EXATO DA API OLLAMA - Curadoria]: HTTP {res.status_code} - {res.text}")
-                res.raise_for_status()
-            
-            texto_ia = res.json().get('message', {}).get('content', '')
-            num = re.search(r'[1-5]', texto_ia)
-            if num:
-                return int(num.group())
-            else:
-                print(f"      [ERRO EXATO DA IA VISÃO - Curadoria]: Resposta fora do padrão: '{texto_ia}'")
-                
-        except Exception as e:
-            print(f"      [ERRO EXATO DO CÓDIGO - Curadoria]: {e}")
-            if tentativa < max_tentativas - 1:
-                time.sleep(2)
-            else:
-                if DEBUG_MODE: print("      [DEBUG] [Fallback] IA incapaz de decidir após 2 tentativas. Imagem 1 assumida.")
-                return 1
+def resetar_modelo_seguro():
+    global ultimo_reset
+    with lock_reset:
+        tempo_atual = time.time()
+        # Evita que múltiplas threads resetem o modelo ao mesmo tempo
+        if tempo_atual - ultimo_reset > 15.0:
+            if DEBUG_MODE: print(f"\n      [!!!] [ALERTA] VRAM congestionada ou IA em loop. A forçar esvaziamento total...")
+            try:
+                requests.post("http://127.0.0.1:11434/api/chat", json={"model": MODELO_VISAO, "keep_alive": 0}, timeout=10)
+                time.sleep(3.0) 
+            except: pass
+            ultimo_reset = time.time()
+            if DEBUG_MODE: print(f"      [!!!] VRAM limpa. Retomando operações.\n")
+        else:
+            time.sleep(2.0)
 
-def gerar_grid_3x3_base64(caminho_img_original):
+def gerar_grid_3x3_base64(caminho_imagem):
     try:
-        img = Image.open(caminho_img_original).convert('RGB')
-        w, h = img.size
+        # COMPRESSÃO EXTREMA: Desidratamos a imagem para não cegar a IA
+        img = Image.open(caminho_imagem).convert('RGB')
+        # Reduzimos para 480x270 (75% menos pixels para a IA processar)
+        img = img.resize((480, 270), Image.NEAREST)
+        
         draw = ImageDraw.Draw(img)
-        try: fonte = ImageFont.truetype("arial.ttf", int(h/8))
+        w, h = img.size
+        passo_x, passo_y = w // 3, h // 3
+        
+        try: fonte = ImageFont.truetype("arial.ttf", 20) 
         except: fonte = ImageFont.load_default()
-
-        step_x = w / 3
-        step_y = h / 3
-
-        draw.line([(step_x, 0), (step_x, h)], fill="red", width=5)
-        draw.line([(step_x*2, 0), (step_x*2, h)], fill="red", width=5)
-        draw.line([(0, step_y), (w, step_y)], fill="red", width=5)
-        draw.line([(0, step_y*2), (w, step_y*2)], fill="red", width=5)
-
-        num = 1
+        
+        for i in range(1, 3):
+            draw.line([(0, passo_y*i), (w, passo_y*i)], fill="red", width=2)
+            draw.line([(passo_x*i, 0), (passo_x*i, h)], fill="red", width=2)
+        
+        contador = 1
         for y in range(3):
             for x in range(3):
-                cx = int(x * step_x + step_x / 2)
-                cy = int(y * step_y + step_y / 2)
-                draw.rectangle([cx-40, cy-40, cx+40, cy+40], fill="black")
-                draw.text((cx, cy), str(num), fill="red", font=fonte, anchor="mm")
-
+                px = (x * passo_x) + (passo_x // 2) - 8
+                py = (y * passo_y) + (passo_y // 2) - 8
+                draw.rectangle([px-3, py-3, px+18, py+18], fill="black")
+                draw.text((px, py), str(contador), fill="white", font=fonte)
+                contador += 1
+                
         buffer = BytesIO()
-        img.save(buffer, format="JPEG", quality=70)
+        # Quality 40 elimina o peso visual inútil
+        img.save(buffer, format="JPEG", quality=40) 
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
     except Exception as e:
-        print(f"      [ERRO EXATO DO CÓDIGO - Geração Grid]: {e}")
-        return None
+        if DEBUG_MODE: print(f"      [DEBUG] Erro ao gerar grid focal: {e}")
+        return ""
 
-def analisar_ponto_focal(img_b64_com_grid, texto_cena, query):
-    prompt = f"Look at the red 3x3 grid (numbered 1 to 9) on this image. NARRATION: '{texto_cena}'. TASK: Identify the EXACT grid number(s) containing the CORE focal point. Return ONLY a raw JSON array of integers. Example: [2] or [4, 5]."
+def esmagar_base64_existente(b64_string):
+    """Comprime os Grids de Curadoria que já vêm grandes do script de extração."""
+    try:
+        img_bytes = base64.b64decode(b64_string)
+        img = Image.open(BytesIO(img_bytes)).convert('RGB')
+        img = img.resize((600, 400), Image.NEAREST)
+        buffer = BytesIO()
+        img.save(buffer, format="JPEG", quality=40)
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
+    except:
+        return b64_string
 
-    if DEBUG_MODE: print("      [DEBUG] [Visão Focal] Analisando enquadramento...")
+def extrair_numeros_seguros(texto, limite=1):
+    texto_limpo = re.sub(r'[@#\$%\^&\*\(\)<>=\+\{\};!]', ' ', texto)
+    numeros = [int(n) for n in re.findall(r'[1-9]', texto_limpo)]
+    if not numeros: return []
+    return numeros[:limite]
+
+def escolher_imagem_ia_base64(query, b64_img):
+    if DEBUG_MODE: print(f"      [DEBUG] [Visão Curadoria] A analisar grelha para '{query}'...")
     
+    b64_desidratado = esmagar_base64_existente(b64_img)
+
+    prompt_curadoria = (
+        f"Analyze the attached grid of 5 numbered images.\n"
+        f"Which image number best matches this description: '{query}'?\n"
+        f"Reply ONLY with a single digit from 1 to 5. No explanations."
+    )
+
+    payload = {
+        "model": MODELO_VISAO,
+        "messages": [{"role": "user", "content": prompt_curadoria, "images": [b64_desidratado]}],
+        "stream": False,
+        "options": {
+            "temperature": 0.2, # Leve variação para sair de loops
+            "num_predict": 20
+        }
+    }
+
     for tentativa in range(2):
         try:
-            payload = {
-                "model": "qwen2.5vl:3b",
-                "messages": [{"role": "user", "content": prompt, "images": [img_b64_com_grid]}],
-                "stream": False, "keep_alive": "5m", "options": {"temperature": 0.0, "num_predict": 30}
-            }
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=120)
-            
-            if res.status_code != 200:
-                print(f"      [ERRO EXATO DA API OLLAMA - Foco]: HTTP {res.status_code} - {res.text}")
-                res.raise_for_status()
-            
-            texto_ia = res.json().get('message', {}).get('content', '').strip()
-            
-            match = re.search(r'\[\s*\d+(?:\s*,\s*\d+)*\s*\]', texto_ia)
-            if match:
-                quadros = json.loads(match.group(0))
-                if isinstance(quadros, list) and len(quadros) > 0:
-                    return quadros[:3]
-            
-            digitos_soltos = [int(d) for d in re.findall(r'[1-9]', texto_ia)]
-            if digitos_soltos:
-                return list(set(digitos_soltos[:3]))
-            
-            print(f"      [ERRO EXATO DA IA VISÃO - Foco]: Resposta fora do padrão: '{texto_ia}'")
-            time.sleep(2)
-            
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            if res.status_code == 200:
+                resposta_ia = res.json().get("message", {}).get("content", "").strip()
+                
+                numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=1)
+                
+                # Gatilho do Desfibrilador: Exclamações infinitas ou números absurdos
+                if "!!!" in resposta_ia or not numeros_encontrados or numeros_encontrados[0] > 5:
+                    if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Alucinação detetada na curadoria. A acionar protocolo de segurança (Tentativa {tentativa+1}/2)")
+                    resetar_modelo_seguro()
+                    continue
+                    
+                return numeros_encontrados[0]
+            else:
+                time.sleep(1)
         except Exception as e:
-            print(f"      [ERRO EXATO DO CÓDIGO - Foco]: {e}")
-            time.sleep(2)
+            if DEBUG_MODE: print(f"      [DEBUG] [Erro Visão] Falha com Ollama: {e}")
+            resetar_modelo_seguro()
+            
+    if DEBUG_MODE: print("      [DEBUG] [Fallback] IA incapaz de decidir após 2 tentativas. Imagem 1 assumida.")
+    return 1
+
+def analisar_ponto_focal(b64_img, texto_cena, query):
+    prompt_foco = (
+        f"Context: '{texto_cena}'. Target: '{query}'.\n"
+        f"Analyze the attached 3x3 grid numbered 1 to 9.\n"
+        f"Which grid numbers contain the main character's face or the main action?\n"
+        f"Reply ONLY with the numbers. Example: 2, 3"
+    )
+
+    payload = {
+        "model": MODELO_VISAO,
+        "messages": [{"role": "user", "content": prompt_foco, "images": [b64_img]}],
+        "stream": False,
+        "options": {
+            "temperature": 0.2, 
+            "num_predict": 20
+        }
+    }
+
+    for tentativa in range(2):
+        try:
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            if res.status_code == 200:
+                resposta_ia = res.json().get("message", {}).get("content", "").strip()
+                
+                numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=3)
+                
+                if "!!!" in resposta_ia or not numeros_encontrados:
+                    if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Alucinação detetada no foco. A acionar protocolo de segurança (Tentativa {tentativa+1}/2)")
+                    resetar_modelo_seguro()
+                    continue
+                    
+                if DEBUG_MODE: print(f"      [DEBUG] [Visão Focal] Alvo trancado nos quadros: {numeros_encontrados}")
+                return numeros_encontrados
+        except Exception:
+            resetar_modelo_seguro()
             
     return [5]
