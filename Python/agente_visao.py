@@ -16,9 +16,8 @@ def resetar_modelo_seguro():
     global ultimo_reset
     with lock_reset:
         tempo_atual = time.time()
-        # Evita que múltiplas threads resetem o modelo ao mesmo tempo
         if tempo_atual - ultimo_reset > 15.0:
-            if DEBUG_MODE: print(f"\n      [!!!] [ALERTA] VRAM congestionada ou IA em loop. A forçar esvaziamento total...")
+            if DEBUG_MODE: print(f"\n      [!!!] [ALERTA] VRAM congestionada. A forçar esvaziamento total...")
             try:
                 requests.post("http://127.0.0.1:11434/api/chat", json={"model": MODELO_VISAO, "keep_alive": 0}, timeout=10)
                 time.sleep(3.0) 
@@ -30,16 +29,14 @@ def resetar_modelo_seguro():
 
 def gerar_grid_3x3_base64(caminho_imagem):
     try:
-        # COMPRESSÃO EXTREMA: Desidratamos a imagem para não cegar a IA
         img = Image.open(caminho_imagem).convert('RGB')
-        # Reduzimos para 480x270 (75% menos pixels para a IA processar)
         img = img.resize((480, 270), Image.NEAREST)
         
         draw = ImageDraw.Draw(img)
         w, h = img.size
         passo_x, passo_y = w // 3, h // 3
         
-        try: fonte = ImageFont.truetype("arial.ttf", 20) 
+        try: fonte = ImageFont.truetype("arial.ttf", 20)
         except: fonte = ImageFont.load_default()
         
         for i in range(1, 3):
@@ -56,7 +53,6 @@ def gerar_grid_3x3_base64(caminho_imagem):
                 contador += 1
                 
         buffer = BytesIO()
-        # Quality 40 elimina o peso visual inútil
         img.save(buffer, format="JPEG", quality=40) 
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
     except Exception as e:
@@ -64,15 +60,27 @@ def gerar_grid_3x3_base64(caminho_imagem):
         return ""
 
 def esmagar_base64_existente(b64_string):
-    """Comprime os Grids de Curadoria que já vêm grandes do script de extração."""
     try:
-        img_bytes = base64.b64decode(b64_string)
+        # 1. LIMPEZA: Remove sujeiras do .txt que fazem o b64decode quebrar
+        b64_limpo = b64_string.replace('\n', '').replace('\r', '').strip()
+        if "," in b64_limpo:
+            b64_limpo = b64_limpo.split(",")[-1]
+            
+        # Repara o padding caso o arquivo texto tenha cortado o final
+        padding = len(b64_limpo) % 4
+        if padding > 0:
+            b64_limpo += '=' * (4 - padding)
+
+        img_bytes = base64.b64decode(b64_limpo)
         img = Image.open(BytesIO(img_bytes)).convert('RGB')
-        img = img.resize((600, 400), Image.NEAREST)
+        
+        # 2. REDUÇÃO DRÁSTICA: De 1200x800 para 480x320 (Mesmo peso matemático do Foco)
+        img = img.resize((480, 320), Image.NEAREST)
         buffer = BytesIO()
         img.save(buffer, format="JPEG", quality=40)
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
-    except:
+    except Exception as e:
+        if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Falha ao comprimir Base64: {e}. Enviando imagem bruta...")
         return b64_string
 
 def extrair_numeros_seguros(texto, limite=1):
@@ -97,20 +105,20 @@ def escolher_imagem_ia_base64(query, b64_img):
         "messages": [{"role": "user", "content": prompt_curadoria, "images": [b64_desidratado]}],
         "stream": False,
         "options": {
-            "temperature": 0.2, # Leve variação para sair de loops
+            "temperature": 0.2, 
             "num_predict": 20
         }
     }
 
     for tentativa in range(2):
         try:
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            # 60 segundos de fôlego para evitar o Timeout prematuro
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=60)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
                 
                 numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=1)
                 
-                # Gatilho do Desfibrilador: Exclamações infinitas ou números absurdos
                 if "!!!" in resposta_ia or not numeros_encontrados or numeros_encontrados[0] > 5:
                     if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Alucinação detetada na curadoria. A acionar protocolo de segurança (Tentativa {tentativa+1}/2)")
                     resetar_modelo_seguro()
@@ -120,7 +128,7 @@ def escolher_imagem_ia_base64(query, b64_img):
             else:
                 time.sleep(1)
         except Exception as e:
-            if DEBUG_MODE: print(f"      [DEBUG] [Erro Visão] Falha com Ollama: {e}")
+            if DEBUG_MODE: print(f"      [DEBUG] [Erro Visão Curadoria] Falha com Ollama: {e}")
             resetar_modelo_seguro()
             
     if DEBUG_MODE: print("      [DEBUG] [Fallback] IA incapaz de decidir após 2 tentativas. Imagem 1 assumida.")
@@ -146,7 +154,7 @@ def analisar_ponto_focal(b64_img, texto_cena, query):
 
     for tentativa in range(2):
         try:
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=60)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
                 
@@ -159,7 +167,10 @@ def analisar_ponto_focal(b64_img, texto_cena, query):
                     
                 if DEBUG_MODE: print(f"      [DEBUG] [Visão Focal] Alvo trancado nos quadros: {numeros_encontrados}")
                 return numeros_encontrados
-        except Exception:
+            else:
+                time.sleep(1)
+        except Exception as e:
+            if DEBUG_MODE: print(f"      [DEBUG] [Erro Visão Foco] Falha com Ollama: {e}")
             resetar_modelo_seguro()
             
     return [5]
