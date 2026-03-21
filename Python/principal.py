@@ -126,7 +126,7 @@ def main():
             vencedor = escolher_imagem_ia_base64(cena.get('query', 'anime scene'), cena['grid_b64'])
             cena['candidato_vencedor'] = vencedor
             
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         futuros_ia = [executor.submit(orquestrar_curadoria, cena) for cena in cenas_visuais]
         for _ in concurrent.futures.as_completed(futuros_ia): pass
 
@@ -167,7 +167,7 @@ def main():
         else:
             cena['quadros_foco'] = [5]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         futuros_foco = [executor.submit(orquestrar_foco, cena, i) for i, cena in enumerate(cenas_visuais)]
         for _ in concurrent.futures.as_completed(futuros_foco): pass
 
