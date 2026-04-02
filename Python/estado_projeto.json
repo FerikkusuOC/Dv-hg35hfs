@@ -1,0 +1,686 @@
+{
+    "cenas": [
+        {
+            "id_inicio": 0,
+            "id_fim": 3,
+            "texto": "Você sabe por que",
+            "query": "Orochimaru freedom Boruto anime",
+            "bgm_mood": "Sombrio",
+            "bgm_bpm": 279,
+            "inicio": 0,
+            "fim": 0.86,
+            "id_rastreio": "[0 ao 3]",
+            "quadros_foco": [
+                1,
+                3,
+                4
+            ]
+        },
+        {
+            "id_inicio": 4,
+            "id_fim": 5,
+            "texto": "Orochimaru não",
+            "query": "Orochimaru freedom Boruto anime",
+            "bgm_mood": "Sombrio",
+            "bgm_bpm": 166,
+            "inicio": 0.86,
+            "fim": 1.58,
+            "id_rastreio": "[4 ao 5]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 6,
+            "id_fim": 8,
+            "texto": "tá preso em",
+            "query": "Orochimaru freedom Boruto anime",
+            "bgm_mood": "Sombrio",
+            "bgm_bpm": 346,
+            "inicio": 1.58,
+            "fim": 2.1,
+            "id_rastreio": "[6 ao 8]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 9,
+            "id_fim": 10,
+            "texto": "Boruto? O",
+            "query": "Orochimaru laboratory Boruto anime",
+            "bgm_mood": "Sombrio",
+            "bgm_bpm": 272,
+            "inicio": 2.1,
+            "fim": 2.54,
+            "id_rastreio": "[9 ao 10]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 11,
+            "id_fim": 14,
+            "texto": "autor já respondeu isso.",
+            "query": "Masashi Kishimoto portrait Boruto anime",
+            "bgm_mood": "Sombrio",
+            "bgm_bpm": 203,
+            "inicio": 2.54,
+            "fim": 3.76,
+            "id_rastreio": "[11 ao 14]",
+            "quadros_foco": [
+                4,
+                5,
+                6
+            ]
+        },
+        {
+            "id_inicio": 15,
+            "id_fim": 16,
+            "texto": "Orochimaru cometeu",
+            "query": "Orochimaru sinister smile Naruto Classic",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 133,
+            "inicio": 3.76,
+            "fim": 4.66,
+            "id_rastreio": "[15 ao 16]",
+            "quadros_foco": [
+                4,
+                5,
+                6
+            ]
+        },
+        {
+            "id_inicio": 17,
+            "id_fim": 21,
+            "texto": "incontáveis crimes terríveis. Tentou destruir",
+            "query": "Konoha destruction Naruto Classic",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 123,
+            "inicio": 4.66,
+            "fim": 7.08,
+            "id_rastreio": "[17 ao 21]",
+            "quadros_foco": [
+                5,
+                6,
+                8
+            ]
+        },
+        {
+            "id_inicio": 22,
+            "id_fim": 23,
+            "texto": "Konoha, matou",
+            "query": "Orochimaru kills Rasa Naruto Shippuden",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 162,
+            "inicio": 7.08,
+            "fim": 7.82,
+            "id_rastreio": "[22 ao 23]",
+            "quadros_foco": [
+                4
+            ]
+        },
+        {
+            "id_inicio": 24,
+            "id_fim": 25,
+            "texto": "o quarto",
+            "query": "Rasa corpse Naruto Shippuden",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 400,
+            "inicio": 7.82,
+            "fim": 8.12,
+            "id_rastreio": "[24 ao 25]",
+            "quadros_foco": [
+                3,
+                6,
+                9
+            ]
+        },
+        {
+            "id_inicio": 26,
+            "id_fim": 27,
+            "texto": "Kazekage e",
+            "query": "Rasa corpse Naruto Shippuden",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 214,
+            "inicio": 8.12,
+            "fim": 8.68,
+            "id_rastreio": "[26 ao 27]",
+            "quadros_foco": [
+                3,
+                7,
+                9
+            ]
+        },
+        {
+            "id_inicio": 28,
+            "id_fim": 29,
+            "texto": "o terceiro",
+            "query": "Hiruzen Sarutobi death Naruto Classic",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 260,
+            "inicio": 8.68,
+            "fim": 9.14,
+            "id_rastreio": "[28 ao 29]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 30,
+            "id_fim": 31,
+            "texto": "Hokage, experimentos",
+            "query": "Orochimaru laboratory tubes Naruto Classic",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 117,
+            "inicio": 9.14,
+            "fim": 10.16,
+            "id_rastreio": "[30 ao 31]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 32,
+            "id_fim": 46,
+            "texto": "humanos que levaram à tortura e mortes de muita gente, incluindo crianças. Então por que",
+            "query": "Orochimaru laboratory tubes Naruto Classic",
+            "bgm_mood": "Raiva",
+            "bgm_bpm": 211,
+            "inicio": 10.16,
+            "fim": 14.42,
+            "id_rastreio": "[32 ao 46]",
+            "quadros_foco": [
+                1,
+                2
+            ]
+        },
+        {
+            "id_inicio": 47,
+            "id_fim": 48,
+            "texto": "Kakashi Naruto",
+            "query": "Kakashi Hatake serious face Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 181,
+            "inicio": 14.42,
+            "fim": 15.08,
+            "id_rastreio": "[47 ao 48]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 49,
+            "id_fim": 49,
+            "texto": "perdoar",
+            "query": "Kakashi Hatake serious face Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 142,
+            "inicio": 15.08,
+            "fim": 15.5,
+            "id_rastreio": "[49 ao 49]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 50,
+            "id_fim": 51,
+            "texto": "Orochimaru quando",
+            "query": "Orochimaru standing in forest Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 181,
+            "inicio": 15.5,
+            "fim": 16.16,
+            "id_rastreio": "[50 ao 51]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 52,
+            "id_fim": 63,
+            "texto": "ele deveria estar morto, ou pelo menos em prisão perpétua? Na verdade,",
+            "query": "Orochimaru standing in forest Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 235,
+            "inicio": 16.16,
+            "fim": 19.22,
+            "id_rastreio": "[52 ao 63]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 64,
+            "id_fim": 65,
+            "texto": "Orochimaru não",
+            "query": "Orochimaru standing in forest Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 166,
+            "inicio": 19.22,
+            "fim": 19.94,
+            "id_rastreio": "[64 ao 65]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 66,
+            "id_fim": 75,
+            "texto": "foi perdoado. Ele é vigiado 24 horas por dia por",
+            "query": "Yamato surveillance Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 193,
+            "inicio": 19.94,
+            "fim": 23.04,
+            "id_rastreio": "[66 ao 75]",
+            "quadros_foco": [
+                8
+            ]
+        },
+        {
+            "id_inicio": 76,
+            "id_fim": 77,
+            "texto": "Yamato e",
+            "query": "Yamato surveillance Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 199,
+            "inicio": 23.04,
+            "fim": 23.64,
+            "id_rastreio": "[76 ao 77]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 78,
+            "id_fim": 96,
+            "texto": "outros ninjas. Então é um tipo de prisão domiciliar. E o motivo disso já foi revelado. Na Light Novel",
+            "query": "Yamato surveillance Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 222,
+            "inicio": 23.64,
+            "fim": 28.76,
+            "id_rastreio": "[78 ao 96]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 97,
+            "id_fim": 98,
+            "texto": "Sasuke Shinden,",
+            "query": "Sasuke Uchiha walking Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 162,
+            "inicio": 28.76,
+            "fim": 29.5,
+            "id_rastreio": "[97 ao 98]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 99,
+            "id_fim": 100,
+            "texto": "Orochimaru explica",
+            "query": "Orochimaru talking Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 176,
+            "inicio": 29.5,
+            "fim": 30.18,
+            "id_rastreio": "[99 ao 100]",
+            "quadros_foco": [
+                4,
+                5
+            ]
+        },
+        {
+            "id_inicio": 101,
+            "id_fim": 123,
+            "texto": "que pessoas como ele são só uma garantia Pra caso aconteça algo que não possa ser resolvido apenas por ações corretas Nesse momento,",
+            "query": "Orochimaru talking Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 225,
+            "inicio": 30.18,
+            "fim": 36.3,
+            "id_rastreio": "[101 ao 123]",
+            "quadros_foco": [
+                1,
+                4
+            ]
+        },
+        {
+            "id_inicio": 124,
+            "id_fim": 125,
+            "texto": "Konoha precisaria",
+            "query": "Konoha village aerial view Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 142,
+            "inicio": 36.3,
+            "fim": 37.14,
+            "id_rastreio": "[124 ao 125]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 126,
+            "id_fim": 129,
+            "texto": "dos poderes desumanos de",
+            "query": "Orochimaru snake transformation Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 190,
+            "inicio": 37.14,
+            "fim": 38.4,
+            "id_rastreio": "[126 ao 129]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 130,
+            "id_fim": 131,
+            "texto": "Orochimaru Por",
+            "query": "Orochimaru snake transformation Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 181,
+            "inicio": 38.4,
+            "fim": 39.06,
+            "id_rastreio": "[130 ao 131]",
+            "quadros_foco": [
+                1,
+                2,
+                4
+            ]
+        },
+        {
+            "id_inicio": 132,
+            "id_fim": 137,
+            "texto": "isso é benéfico pros dois manter",
+            "query": "Orochimaru snake transformation Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 233,
+            "inicio": 39.06,
+            "fim": 40.6,
+            "id_rastreio": "[132 ao 137]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 138,
+            "id_fim": 139,
+            "texto": "Orochimaru como",
+            "query": "Orochimaru snake transformation Naruto Shippuden",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 193,
+            "inicio": 40.6,
+            "fim": 41.22,
+            "id_rastreio": "[138 ao 139]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 140,
+            "id_fim": 147,
+            "texto": "um animal de estimação E no arco do",
+            "query": "Mitsuki standing Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 285,
+            "inicio": 41.22,
+            "fim": 42.9,
+            "id_rastreio": "[140 ao 147]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 148,
+            "id_fim": 149,
+            "texto": "Mitsuken Boruto,",
+            "query": "Mitsuki standing Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 153,
+            "inicio": 42.9,
+            "fim": 43.68,
+            "id_rastreio": "[148 ao 149]",
+            "quadros_foco": [
+                1,
+                3
+            ]
+        },
+        {
+            "id_inicio": 150,
+            "id_fim": 151,
+            "texto": "Naruto explica",
+            "query": "Naruto Uzumaki Hokage office Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 222,
+            "inicio": 43.68,
+            "fim": 44.22,
+            "id_rastreio": "[150 ao 151]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 152,
+            "id_fim": 153,
+            "texto": "que atualmente",
+            "query": "Naruto Uzumaki Hokage office Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 206,
+            "inicio": 44.22,
+            "fim": 44.8,
+            "id_rastreio": "[152 ao 153]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 154,
+            "id_fim": 155,
+            "texto": "Orochimaru não",
+            "query": "Orochimaru laboratory Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 187,
+            "inicio": 44.8,
+            "fim": 45.44,
+            "id_rastreio": "[154 ao 155]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 156,
+            "id_fim": 168,
+            "texto": "tem motivos pra fazer nenhum mal Além de que os dados coletados por",
+            "query": "Orochimaru laboratory Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 256,
+            "inicio": 45.44,
+            "fim": 48.48,
+            "id_rastreio": "[156 ao 168]",
+            "quadros_foco": [
+                1,
+                3,
+                6
+            ]
+        },
+        {
+            "id_inicio": 169,
+            "id_fim": 170,
+            "texto": "Orochimaru em",
+            "query": "Orochimaru laboratory Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 193,
+            "inicio": 48.48,
+            "fim": 49.1,
+            "id_rastreio": "[169 ao 170]",
+            "quadros_foco": [
+                3,
+                6
+            ]
+        },
+        {
+            "id_inicio": 171,
+            "id_fim": 185,
+            "texto": "suas pesquisas serão essenciais pro mundo ninja Quando chegar a hora de enfrentar o clã",
+            "query": "Momoshiki Otsutsuki Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 248,
+            "inicio": 49.1,
+            "fim": 52.72,
+            "id_rastreio": "[171 ao 185]",
+            "quadros_foco": [
+                1,
+                2
+            ]
+        },
+        {
+            "id_inicio": 186,
+            "id_fim": 187,
+            "texto": "Otsutsuki Então",
+            "query": "Momoshiki Otsutsuki Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 166,
+            "inicio": 52.72,
+            "fim": 53.44,
+            "id_rastreio": "[186 ao 187]",
+            "quadros_foco": [
+                1,
+                4
+            ]
+        },
+        {
+            "id_inicio": 188,
+            "id_fim": 191,
+            "texto": "é por isso que",
+            "query": "Orochimaru standing Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 333,
+            "inicio": 53.44,
+            "fim": 54.16,
+            "id_rastreio": "[188 ao 191]",
+            "quadros_foco": [
+                2,
+                5
+            ]
+        },
+        {
+            "id_inicio": 192,
+            "id_fim": 193,
+            "texto": "Orochimaru não",
+            "query": "Orochimaru standing Boruto anime",
+            "bgm_mood": "Dramático",
+            "bgm_bpm": 187,
+            "inicio": 54.16,
+            "fim": 54.8,
+            "id_rastreio": "[192 ao 193]",
+            "quadros_foco": [
+                8
+            ]
+        },
+        {
+            "id_inicio": 194,
+            "id_fim": 200,
+            "texto": "tá preso Diferente do seu conhecimento sobre",
+            "query": "Naruto Uzumaki scroll Naruto",
+            "bgm_mood": "Animado",
+            "bgm_bpm": 199,
+            "inicio": 54.8,
+            "fim": 56.9,
+            "id_rastreio": "[194 ao 200]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 201,
+            "id_fim": 202,
+            "texto": "Naruto Que",
+            "query": "Naruto Uzumaki scroll Naruto",
+            "bgm_mood": "Animado",
+            "bgm_bpm": 230,
+            "inicio": 56.9,
+            "fim": 57.42,
+            "id_rastreio": "[201 ao 202]",
+            "quadros_foco": [
+                5
+            ]
+        },
+        {
+            "id_inicio": 203,
+            "id_fim": 221,
+            "texto": "vai continuar preso enquanto você não se inscrever aqui Que vai continuar preso enquanto você não me seguir aqui",
+            "query": "Naruto Uzumaki scroll Naruto",
+            "bgm_mood": "Animado",
+            "bgm_bpm": 253,
+            "inicio": 57.42,
+            "fim": 61.92,
+            "id_rastreio": "[203 ao 221]",
+            "quadros_foco": [
+                5
+            ]
+        }
+    ],
+    "faixas_musicais": [
+        {
+            "id": 0,
+            "arquivo": "musicas/Sombrio/Apocalyptic Echoes - Jimena Contreras_184bpm.mp3",
+            "titulo": "Apocalyptic Echoes - Jimena Contreras_184bpm.mp3",
+            "clima": "Sombrio",
+            "inicio": 0,
+            "fim": 5.26,
+            "volume": 0.15,
+            "fade_in": 0.0,
+            "fade_out": 1.5
+        },
+        {
+            "id": 1,
+            "arquivo": "musicas/Raiva/Final Boss - Myuu_143bpm.mp3",
+            "titulo": "Final Boss - Myuu_143bpm.mp3",
+            "clima": "Raiva",
+            "inicio": 3.76,
+            "fim": 15.92,
+            "volume": 0.15,
+            "fade_in": 1.5,
+            "fade_out": 1.5
+        },
+        {
+            "id": 2,
+            "arquivo": "musicas/Dramático/Before I Go - RKVC_172bpm.mp3",
+            "titulo": "Before I Go - RKVC_172bpm.mp3",
+            "clima": "Dramático",
+            "inicio": 14.42,
+            "fim": 56.3,
+            "volume": 0.15,
+            "fade_in": 1.5,
+            "fade_out": 1.5
+        },
+        {
+            "id": 3,
+            "arquivo": "musicas/Animado/Ninja Tortoise - Verified Picasso_161bpm.mp3",
+            "titulo": "Ninja Tortoise - Verified Picasso_161bpm.mp3",
+            "clima": "Animado",
+            "inicio": 54.8,
+            "fim": 61.92,
+            "volume": 0.15,
+            "fade_in": 1.5,
+            "fade_out": 0.0
+        }
+    ]
+}
