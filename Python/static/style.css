@@ -1,0 +1,774 @@
+:root {
+    --bg-base: #0d0b14;
+    --border-color: rgba(255, 255, 255, 0.06);
+    --primary-cyan: #00d2ff;
+    --primary-purple: #a855f7;
+    --text-main: #f8fafc; 
+    --text-muted: #cbd5e1;
+    --danger: #ef4444;
+}
+
+/* CUSTOM SCROLLBARS GERAIS */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #151c22; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #3b4046; border-radius: 4px; border: 1px solid rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb:hover { background: #4a5058; }
+
+body { 
+    margin: 0; padding: 0; 
+    background-color: var(--bg-base);
+    color: var(--text-main); 
+    font-family: 'Inter', sans-serif; 
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
+}
+
+/* HEADER */
+.header { 
+    padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; 
+    border-bottom: 1px solid var(--border-color); 
+    background: rgba(13, 11, 20, 0.8); backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 10;
+}
+.header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; letter-spacing: -0.5px;}
+.botoes { display: flex; gap: 12px; align-items: center; }
+.botoes button { 
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; 
+    display: flex; align-items: center; gap: 6px; font-size: 0.85rem; transition: 0.2s; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    border: none !important;
+}
+.btn-upscale { background: linear-gradient(90deg, #3b1f76, #9436ae); color: #fff; box-shadow: 0 4px 15px rgba(148, 54, 174, 0.2); } 
+.btn-upscale:hover { filter: brightness(1.1); }
+.btn-render { background: linear-gradient(90deg, #17a5cb, #91d2fa); color: #000; box-shadow: 0 4px 15px rgba(23, 165, 203, 0.2); text-shadow: none !important; } 
+.btn-render:hover { filter: brightness(1.1); }
+#autoSaveHint { font-size: 0.8em; color: var(--text-muted); opacity: 0; transition: opacity 0.5s; display: flex; align-items: center; gap: 4px; margin-right: 15px;}
+
+/* WORKSPACE & PANELS */
+.workspace { display: flex; flex: 1; padding: 15px; gap: 15px; overflow: hidden; position: relative; }
+.painel-midias, .painel-propriedades { 
+    border-radius: 12px; padding: 15px; overflow-y: auto; 
+    border: 1px solid var(--border-color); 
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); 
+}
+.painel-midias { flex: 0 0 280px; background: linear-gradient(135deg, #41372e, #282c2d, #1f2638, #2b223d); }
+.painel-propriedades { flex: 0 0 300px; background: linear-gradient(135deg, #273e50, #392e4e, #282339); }
+
+/* BIBLIOTECA */
+h3 { margin-top: 0; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; font-weight: 600;}
+h3 i { color: #f59e0b; font-size: 1.2rem;}
+.btn-import { 
+    width: 100%; padding: 10px; background: linear-gradient(180deg, #443126 0%, #281d16 100%); 
+    border: 1px solid #75523d; color: #eab308; border-radius: 8px; 
+    cursor: pointer; font-weight: 600; font-family: 'Inter'; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.1);
+}
+.btn-import:hover { background: linear-gradient(180deg, #593f31 0%, #38251c 100%); }
+
+.sub-header-lib { font-size: 0.75em; color: var(--text-muted); margin-top: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px;}
+.lista-midias { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+.item-midia { 
+    background: rgba(0,0,0,0.5); border: 1px solid rgba(255, 255, 255, 0.1); 
+    border-radius: 6px; padding: 2px; text-align: center; position: relative; cursor: pointer; transition: 0.2s; aspect-ratio: 16/9; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.item-midia:hover { border-color: var(--primary-cyan); transform: translateY(-2px); }
+.item-midia img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+.btn-add-agulha { position: absolute; bottom: 4px; right: 4px; background: var(--primary-cyan); color: #000; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-weight: bold; display: none; align-items: center; justify-content: center; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.5);}
+.item-midia:hover .btn-add-agulha { display: flex; }
+
+/* PLAYER */
+.player-container { flex: 1; display: flex; flex-direction: column; min-height: 0; gap: 15px;}
+.view-screen { 
+    flex: 1; display: flex; justify-content: center; align-items: center; position: relative; min-height: 0; overflow: hidden; 
+    background: #000; border-radius: 12px; border: 1px solid var(--border-color); 
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.02); 
+}
+#previewCanvas { max-width: 100%; max-height: 100%; object-fit: contain; background: #000; } 
+
+.player-controls-bar { 
+    background: linear-gradient(90deg, #1a4349, #26374b, #362d4c); 
+    border: 1px solid var(--border-color); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; 
+    border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.player-controls-center { display: flex; gap: 10px; align-items: center; justify-content: center; flex: 1; }
+.player-btn { background: rgba(255,255,255,0.03); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; cursor: pointer; font-size: 18px; transition: 0.2s; display: flex; align-items: center; justify-content: center; min-width: 40px;}
+.player-btn:hover { background: rgba(255,255,255,0.1); color: var(--primary-cyan); border-color: var(--primary-cyan); }
+.player-btn.play { background: rgba(0, 210, 255, 0.1); color: var(--primary-cyan); border-color: rgba(0, 210, 255, 0.4); }
+.player-btn.play:hover { background: rgba(0, 210, 255, 0.2); box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); }
+.time-display { font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; color: var(--primary-cyan); background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);}
+
+/* PROPRIEDADES DE VÍDEO E SLIDERS */
+.info-box { padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85em; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);}
+.prop-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-muted); padding-bottom: 10px; border-bottom: 1px solid var(--border-color);}
+label { color: var(--primary-cyan); font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;}
+
+input[type=range] { -webkit-appearance: none; width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); height: 6px; border-radius: 3px; outline: none; padding: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary-cyan); cursor: pointer; box-shadow: 0 0 10px rgba(0, 210, 255, 0.5); }
+
+/* MENU AVANÇADO RECOLHÍVEL */
+.advanced-header { cursor: pointer; padding: 10px 12px; background: rgba(0,0,0,0.4); border-radius: 6px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 8px; transition: 0.2s; border: 1px solid var(--border-color);}
+.advanced-header:hover { background: rgba(0, 210, 255, 0.1); color: var(--primary-cyan); border-color: rgba(0, 210, 255, 0.3);}
+.advanced-content { padding: 15px; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; background: rgba(0,0,0,0.2); }
+.advanced-content input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
+
+/* CONTROLES NATIVOS PARA MODAIS */
+select, input[type=text] { width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 6px; font-family: 'Inter'; font-size: 0.85rem; outline: none; appearance: none; cursor: pointer; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); transition: 0.2s;}
+select:focus, input[type=text]:focus { border-color: var(--primary-cyan); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 0 2px rgba(0, 210, 255, 0.2); }
+.select-wrapper-native { position: relative; }
+.select-wrapper-native::after { content: '\25BC'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--text-muted); pointer-events: none;}
+
+/* CUSTOM SELECT */
+.custom-select { position: relative; width: 100%; font-family: 'Inter', sans-serif; font-size: 0.85rem; user-select: none; }
+.select-selected { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); padding: 10px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+.select-selected:hover { border-color: var(--primary-cyan); }
+.select-selected::after { content: '\25BC'; position: absolute; right: 12px; font-size: 10px; color: var(--text-muted); }
+.select-items { position: absolute; background-color: #1e2430; border: 1px solid var(--border-color); border-radius: 6px; top: 100%; left: 0; right: 0; z-index: 999; margin-top: 4px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; }
+.select-items.select-show { display: block; animation: fadeIn 0.15s ease-out; }
+.select-item { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-main); transition: 0.1s; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.select-item:last-child { border-bottom: none; }
+.select-item:hover { background-color: rgba(0, 210, 255, 0.15); color: var(--primary-cyan); }
+.select-item i { font-size: 1.1em; color: var(--primary-cyan); width: 20px; text-align: center;}
+.select-items::-webkit-scrollbar { width: 6px; }
+.select-items::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 3px; }
+.select-items::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.select-items::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* BOTOES AUXILIARES */
+.btn-danger { background: linear-gradient(90deg, #a61939, #f66b64); color: white; border: none; padding: 10px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.btn-danger:hover { filter: brightness(1.1); }
+.btn-outline { background: linear-gradient(90deg, #17a5cb, #91d2fa); border: none; color: #000; padding: 8px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: 600; transition: 0.2s; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.2); }
+.btn-outline:hover { filter: brightness(1.1); }
+
+/* TIMELINE VISUAL REWORK E WAVEFORM DE ÁUDIO */
+.timeline-container { 
+    height: 240px !important; /* <<< AUMENTADO DE 240 PARA 280PX */
+    background: linear-gradient(90deg, #1b2e35, #202739, #2b223d); 
+    border: 1px solid rgba(255, 255, 255, 0.03) !important; 
+    padding: 10px; 
+    padding-right: 0 !important; 
+    border-radius: 12px; 
+    margin: 0 15px 15px 15px; 
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); 
+    overflow: hidden !important; 
+}
+
+.vis-item.vis-range { background: linear-gradient(90deg, #275680, #275680); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; height: 60px; padding: 0 !important; overflow: hidden; margin: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+.vis-item .vis-item-content { padding: 0 !important; margin: 0 !important; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+.vis-item-content > div { flex-direction: column !important; }
+.vis-item-content > div > div:first-child { background: linear-gradient(90deg, #285b8a, #41999b) !important; color: #ffffff !important; width: 100% !important; height: 20px !important; min-height: 20px !important; border-right: none !important; border-bottom: 1px solid rgba(0,0,0,0.3) !important; box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important; justify-content: flex-start !important; padding: 0 8px !important; }
+
+.vis-item.vis-selected { border: 2px solid var(--primary-cyan); border-radius: 6px; box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);}
+
+/* >>> CORREÇÃO: O display: flex e align-items foram removidos para evitar o afundamento dos painéis <<< */
+.vis-panel.vis-left { 
+    background: linear-gradient(90deg, #1d4056, #244f5f); 
+    color: #cbd5e1; 
+    border-right: 1px solid rgba(255,255,255,0.1); 
+    font-size: 0.8rem; 
+    font-weight: 600;
+    z-index: 10000 !important;
+}
+
+.vis-panel.vis-left .vis-label { color: #cbd5e1; }
+.vis-label { display: flex; align-items: center; gap: 6px;}
+
+.vis-custom-time.agulha { background-color: #ef4444; width: 2px; z-index: 10; cursor: col-resize; box-shadow: 0 0 10px rgba(239,68,68,0.5);}
+.vis-custom-time.agulha::before { content: ''; position: absolute; top: -2px; left: -4px; width: 10px; height: 14px; background-color: #ef4444; border-radius: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+
+/* CAMADA DE ÁUDIO E WAVEFORMS */
+.vis-item.audio-clip { background: linear-gradient(90deg, #064e3b, #059669) !important; border-color: #10b981 !important; cursor: pointer !important; }
+.vis-item.audio-clip .vis-item-content > div > div:first-child { background: linear-gradient(90deg, #065f46, #10b981) !important; border-bottom: 1px solid rgba(0,0,0,0.5) !important;}
+.waveform-container { position: absolute; top: 20px; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.waveform-canvas { width: 100%; height: 100%; display: block; pointer-events: none;}
+
+/* MENU CONTEXTO */
+.context-menu { position: absolute; background: rgba(20, 25, 35, 0.95); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); z-index: 1000; display: none; min-width: 220px; overflow: hidden; backdrop-filter: blur(5px);}
+.context-menu ul { list-style: none; margin: 0; padding: 5px 0; }
+.context-menu li { padding: 12px 15px; cursor: pointer; color: var(--text-main); font-size: 0.85em; display: flex; align-items: center; gap: 10px; transition: 0.2s;}
+.context-menu li i { font-size: 1.1em; color: var(--primary-cyan);}
+.context-menu li:hover { background-color: rgba(255,255,255,0.05); color: var(--primary-cyan); }
+.context-menu li.danger i { color: var(--danger); }
+.context-menu li.danger:hover { color: var(--danger); background-color: rgba(239,68,68,0.1);}
+.context-menu li.divisor { height: 1px; background-color: rgba(255,255,255,0.05); margin: 5px 0; padding: 0; pointer-events: none; }
+
+/* MODAIS */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+
+/* >>> FIX: CONTROLE RÍGIDO DE TAMANHO DA TELA FINAL <<< */
+.modal-content { 
+    background: linear-gradient(135deg, #1b2e35, #2b223d); 
+    padding: 30px; 
+    border-radius: 16px; 
+    max-width: 90vw; 
+    max-height: 90vh; /* Trava a altura na tela */
+    overflow-y: auto; /* Adiciona scroll se necessário */
+    border: 1px solid var(--border-color); 
+    box-shadow: 0 25px 60px rgba(0,0,0,0.7); 
+    display: flex;
+    flex-direction: column;
+}
+.modal-content h2 { margin-top: 0; color: var(--text-main); font-size: 1.2rem; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;}
+.modal-content h2 i { color: var(--primary-cyan); font-size: 1.5rem; }
+
+/* GRID DE FOCO */
+.foco-wrapper { text-align: center; margin: 15px 0; }
+.grid-container { position: relative; display: inline-block; max-height: 60vh; max-width: 100%; box-shadow: 0 15px 40px rgba(0,0,0,0.6); border-radius: 8px; background: #000; overflow: hidden; border: 1px solid var(--border-color);}
+.grid-container img { max-width: 100%; max-height: 60vh; display: block; object-fit: contain;}
+.grid-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+.grid-cell { border: 1px solid rgba(255, 255, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: rgba(255,255,255,0.5); font-weight: bold; transition: 0.1s;}
+.grid-cell:hover { background: rgba(0, 210, 255, 0.2); }
+.grid-cell.selecionado { background: rgba(0, 210, 255, 0.4); border: 2px solid var(--primary-cyan); color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+
+.progress-bg { width: 100%; height: 10px; background: rgba(0,0,0,0.6); border-radius: 10px; margin: 20px 0; overflow: hidden; position: relative; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.05);}
+.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #17a5cb 0%, #91d2fa 100%); transition: width 0.3s ease; box-shadow: 0 0 15px rgba(145, 210, 250, 0.5);}
+.progress-fill.purple { background: linear-gradient(90deg, #3b1f76 0%, #9436ae 100%); box-shadow: 0 0 15px rgba(148, 54, 174, 0.5);}
+.render-stats { display: flex; justify-content: space-between; font-size: 0.85em; color: var(--text-muted); margin-bottom: 10px; font-family: monospace;}
+
+/* >>> FIX: TRAVA DO VÍDEO RENDERIZADO <<< */
+#finalVideoPlayer { 
+    width: 100%; 
+    height: auto;
+    max-height: 50vh; 
+    object-fit: contain; /* Trava o aspecto no modal */
+    border-radius: 8px; 
+    border: 1px solid var(--border-color); 
+    background: #000; 
+    outline: none; 
+    display: block;
+    margin: 0 auto;
+}
+
+.music-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 15px; border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px; margin-bottom: 8px; background: rgba(0,0,0,0.2);
+    cursor: pointer; transition: 0.2s;
+}
+.music-item:hover { background: rgba(0, 210, 255, 0.1); border-color: var(--primary-cyan); }
+.music-item.selected { background: rgba(0, 210, 255, 0.2); border-color: var(--primary-cyan); box-shadow: 0 0 10px rgba(0,210,255,0.2); }
+.music-tag { font-size: 0.7em; padding: 3px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* ========================================== */
+/* SISTEMA DE TRILHA SONORA (MULTITRACK)      */
+/* ========================================== */
+
+/* Blocos Roxos na Timeline para a Música */
+.vis-item.music-clip { 
+    background: linear-gradient(90deg, #4c1d95, #7c3aed) !important; 
+    border-color: #a855f7 !important; 
+    cursor: pointer !important; 
+}
+/* Blocos Roxos na Timeline para a Música (Semitransparentes para o Crossfade) */
+.vis-item.music-clip { 
+    background: linear-gradient(90deg, rgba(76, 29, 149, 0.7), rgba(124, 58, 237, 0.7)) !important; 
+    border-color: #a855f7 !important; 
+    cursor: pointer !important; 
+}
+.vis-item.music-clip .vis-item-content > div > div:first-child { 
+    background: linear-gradient(90deg, rgba(91, 33, 182, 0.8), rgba(139, 92, 246, 0.8)) !important; 
+    border-bottom: 1px solid rgba(0,0,0,0.5) !important;
+}
+
+/* Lista de Músicas no Pop-up (Modal) */
+.music-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 15px; border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px; margin-bottom: 8px; background: rgba(0,0,0,0.2);
+    cursor: pointer; transition: 0.2s;
+}
+.music-item:hover { 
+    background: rgba(0, 210, 255, 0.1); 
+    border-color: var(--primary-cyan); 
+}
+.music-item.selected { 
+    background: rgba(0, 210, 255, 0.2); 
+    border-color: var(--primary-cyan); 
+    box-shadow: 0 0 10px rgba(0,210,255,0.2); 
+}
+.music-tag { 
+    font-size: 0.7em; padding: 3px 8px; border-radius: 4px; 
+    background: rgba(255,255,255,0.1); color: var(--text-muted); 
+    text-transform: uppercase; letter-spacing: 1px; 
+}
+
+/* ========================================== */
+/* OCULTAÇÃO DA GRADE SEM QUEBRAR A TIMELINE  */
+/* ========================================== */
+.vis-timeline .vis-grid,
+.vis-timeline .vis-time-axis {
+    opacity: 0 !important; /* Fica 100% invisível, mas o elemento "existe" para a matemática da timeline */
+    pointer-events: none !important; /* Garante que o usuário não clique sem querer em algo invisível */
+}
+
+/* Garantir que a agulha fique sempre na frente de tudo */
+.vis-custom-time.agulha {
+    display: block !important;
+    z-index: 9999 !important;
+}
+
+/* Deixar as linhas divisórias das faixas quase invisíveis */
+.vis-timeline .vis-panel, 
+.vis-timeline .vis-label, 
+.vis-timeline .vis-group {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Deixar as bordas externas da timeline e a divisória lateral quase invisíveis */
+.timeline-container {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.vis-timeline,
+.vis-panel.vis-left,
+.vis-panel.vis-center,
+.vis-panel.vis-top,
+.vis-panel.vis-bottom {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ========================================== */
+/* CORREÇÕES DOS BOTÕES DO POP-UP             */
+/* ========================================== */
+
+/* Estilo para o botão de Retornar/Cancelar */
+.btn-preview {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-preview:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Estilo visual apagado para botões desativados (Importar) */
+button:disabled {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    text-shadow: none !important;
+}
+
+/* ========================================== */
+/* TELA DE CARREGAMENTO INICIAL               */
+/* ========================================== */
+.loading-overlay {
+    position: fixed; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    background: var(--bg-base);
+    z-index: 99999; 
+    display: flex; flex-direction: column; 
+    justify-content: center; align-items: center;
+    transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
+}
+
+.spinner-carregando {
+    width: 50px; height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.05);
+    border-top-color: var(--primary-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { 
+    to { transform: rotate(360deg); } 
+}
+
+/* ========================================== */
+/* TRAVAMENTO DA TIMELINE E BARRA DE ROLAGEM  */
+/* ========================================== */
+
+/* Impede que o conteúdo vaze da caixa escura */
+.timeline-container {
+    overflow: hidden !important;
+}
+
+/* Força a timeline a respeitar o limite da caixa, ativando o scroll interno e mantendo a régua de tempo fixa */
+.vis-timeline {
+    height: 100% !important;
+}
+
+/* Estiliza a barra de rolagem interna para o visual Dark Studio */
+.vis-panel.vis-center::-webkit-scrollbar {
+    width: 8px;
+}
+.vis-panel.vis-center::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+.vis-panel.vis-center::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+.vis-panel.vis-center::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ========================================== */
+/* ALINHAMENTO DA BARRA DE ROLAGEM NA DIREITA */
+/* ========================================== */
+
+/* Tira o espaçamento interno apenas do lado direito para a barra colar na borda */
+.timeline-container {
+    padding-right: 0 !important; 
+}
+
+/* Oculta completamente a barra de rolagem da coluna dos nomes (esquerda) para não dar conflito */
+.vis-panel.vis-left::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Garante que a barra da direita encoste na parede e fique no visual Dark Studio */
+.vis-panel.vis-center::-webkit-scrollbar {
+    width: 10px;
+}
+.vis-panel.vis-center::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0 12px 12px 0; /* Arredonda só o lado encostado na borda */
+}
+
+/* ========================================== */
+/* CORREÇÃO DE SOBREPOSIÇÃO (Z-INDEX)         */
+/* ========================================== */
+
+/* Garante que modais, overlays e menus de contexto fiquem sempre acima da agulha da timeline */
+.modal, 
+.modal-overlay, 
+.modal-content,
+#modalFoco, 
+#modalSubstituirMusica, 
+#menuContexto {
+    z-index: 99999 !important;
+}
+
+/* ========================================== */
+/* ESTÉTICA PREMIUM DA BIBLIOTECA DE ÁUDIO    */
+/* ========================================== */
+
+/* Barra de Pesquisa com Degradê Translúcido */
+.audio-filter-bar {
+    display: flex;
+    align-items: center; /* Garante alinhamento central vertical */
+    gap: 15px; 
+    padding: 15px 20px 5px 20px; /* Desgruda do topo */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.audio-search-box {
+    flex: 1;
+    position: relative;
+}
+
+.audio-search-box i {
+    position: absolute;
+    left: 15px; /* Centralizado perfeitamente */
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1.2em;
+    pointer-events: none; /* Deixa o clique passar para o input */
+}
+
+.audio-input {
+    width: 100%;
+    box-sizing: border-box; 
+    background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important; 
+    color: var(--text-main);
+    padding: 12px 15px 12px 45px !important;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95em;
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.audio-input:focus {
+    border-color: var(--primary-cyan);
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 100%);
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2), 0 0 0 2px rgba(6, 182, 212, 0.15);
+}
+
+/* Botão de Filtro Moderno */
+.filter-icon-btn { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; cursor: pointer; transition: 0.2s; flex-shrink: 0; }
+.filter-icon-btn:hover { background: rgba(255,255,255,0.05); border-color: var(--text-muted); }
+.filter-icon-btn select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+/* Grid de Colunas (O Segredo do Alinhamento) */
+.music-grid-header {
+    display: grid; grid-template-columns: 40px 2.5fr 1.5fr 120px 80px 80px;
+    padding: 10px 30px; margin-top: 10px;
+    font-size: 0.75em; font-weight: 600; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
+}
+
+.music-item {
+    display: grid; grid-template-columns: 40px 2.5fr 1.5fr 120px 80px 80px; align-items: center;
+    padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-radius: 8px; background: transparent; cursor: pointer; transition: 0.2s;
+}
+.music-item:hover { background: rgba(255,255,255,0.02); }
+.music-item.selected { 
+    background: linear-gradient(90deg, rgba(6, 182, 212, 0.05), transparent); 
+    border: 1px solid var(--primary-cyan); box-shadow: 0 0 15px rgba(6, 182, 212, 0.1); 
+}
+
+/* Tipografia da Tabela */
+.music-item .play-col i { font-size: 1.4em; color: rgba(255,255,255,0.3); transition: 0.2s; }
+.music-item:hover .play-col i { color: var(--text-main); }
+.music-item.selected .play-col i { color: var(--primary-cyan); }
+.music-item .title-col { font-weight: 500; color: var(--text-main); font-size: 0.95em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 15px; }
+.music-item .artist-col { color: var(--text-muted); font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 15px; }
+.music-item .dur-col { color: var(--text-muted); font-size: 0.85em; display: flex; align-items: center; gap: 5px; }
+.music-item .bpm-col { color: var(--text-main); font-size: 0.85em; }
+
+/* Tags de Clima Coloridas Dinâmicas */
+.music-tag { 
+    font-size: 0.7em; font-weight: 700; padding: 4px 10px; border-radius: 4px; 
+    text-transform: uppercase; letter-spacing: 0.5px; color: #fff;
+    display: inline-block; text-align: center; min-width: 60px;
+}
+
+/* Player Inferior Premium */
+.player-inferior-premium {
+    padding: 15px 25px; background: #0f131a; border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 20px;
+}
+.btn-play-premium {
+    width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.1); border: none; color: #fff; cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center; transition: 0.2s;
+}
+.btn-play-premium:hover { background: var(--primary-cyan); color: #000; }
+.player-info-track { display: flex; flex-direction: column; width: 200px; }
+.player-info-track .track-title { font-size: 0.9em; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-info-track .track-artist { font-size: 0.75em; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-slider-container { flex: 1; display: flex; align-items: center; }
+.player-inferior-premium input[type=range] { height: 4px; background: rgba(255,255,255,0.1); }
+.player-inferior-premium input[type=range]::-webkit-slider-thumb { width: 12px; height: 12px; background: var(--primary-cyan); box-shadow: 0 0 10px var(--primary-cyan); }
+.track-time { font-size: 0.75em; font-weight: 600; font-family: monospace; color: var(--text-muted); min-width: 80px; text-align: right; }
+.btn-ok-premium { background: var(--primary-cyan); color: #000; border: none; padding: 10px 25px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+.btn-ok-premium:hover:not(:disabled) { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); filter: brightness(1.1); }
+.btn-ok-premium:disabled { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.2); cursor: not-allowed; }
+
+/* ========================================== */
+/* MELHORIAS GERAIS NO MODAL (DEGRADÊS)        */
+/* ========================================== */
+
+/* Sombra e degradê suave ao fundo do pop-up inteiro */
+.modal-content {
+    background: linear-gradient(135deg, #1a232e 0%, #131722 100%);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255,255,255,0.03);
+}
+
+/* Degradê de hover aos botões padrão para combinar com o site */
+.btn-outline:hover, .btn-preview:hover {
+    background: linear-gradient(135deg, var(--primary-cyan) 0%, #0891b2 100%) !important;
+    color: #000 !important;
+    border-color: transparent !important;
+}
+
+/* ========================================== */
+/* DESIGN DA AGULHA DE REPRODUÇÃO (PLAYHEAD)  */
+/* ========================================== */
+
+.vis-custom-time.agulha {
+    background-color: #ef4444 !important; /* Corpo totalmente vermelho */
+    width: 2px !important;
+    z-index: 100 !important;
+    cursor: ew-resize !important;
+}
+
+.vis-custom-time.agulha > .vis-custom-time-marker {
+    background-color: #ef4444 !important; /* Cabeça totalmente vermelha */
+    border: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    top: -18px !important; 
+    margin-left: -9px !important; 
+    border-radius: 4px 4px 0 0 !important;
+    cursor: ew-resize !important;
+    box-shadow: 0 -2px 5px rgba(239, 68, 68, 0.5);
+}
+
+.vis-custom-time.agulha > .vis-custom-time-marker::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 4px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #ef4444 transparent transparent transparent;
+}
+
+/* ========================================== */
+/* A MATEMÁTICA ABSOLUTA: O BUG DO CANVAS     */
+/* ========================================== */
+
+/* 1. A MORTE DO EIXO INVISÍVEL: Impede que a régua superior empurre a direita */
+.vis-panel.vis-top {
+    height: 0px !important;
+    min-height: 0px !important;
+    border: none !important;
+    visibility: hidden !important;
+}
+
+/* 2. LIMPEZA ESTRUTURAL: Devolve o controle das cascas para a biblioteca e arranca bordas físicas */
+.vis-timeline { border: none !important; }
+.vis-timeline .vis-panel { border-top: none !important; border-bottom: none !important; }
+
+.vis-timeline .vis-label, 
+.vis-timeline .vis-group {
+    height: auto !important; /* O vis.js volta a calcular a altura livremente */
+    min-height: 60px !important;
+    border: none !important;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.1) !important; /* A divisória fantasma (0px na matemática) */
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* 3. LADO ESQUERDO: Texto centralizado e com altura blindada */
+.vis-timeline .vis-label .vis-inner {
+    height: 60px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 15px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.vis-label-content {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+/* 4. A CURA DO CANVAS: Força o conteúdo interno a nunca passar de 60px para o vis.js não enlouquecer */
+.vis-item, 
+.vis-item-content {
+    height: 60px !important;
+    max-height: 60px !important; /* A mordaça que impede o canvas de inflar a linha */
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+/* 5. VISUAL DOS CLIPES */
+.vis-item.vis-range {
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
+}
+
+.vis-item.vis-selected {
+    box-shadow: 
+        inset 0 0 0 2px var(--primary-cyan), 
+        inset 0 0 15px rgba(0, 210, 255, 0.4), 
+        0 0 15px var(--primary-cyan) !important; 
+    z-index: 10 !important;
+}
+
+/* ========================================== */
+/* CONTROLE DE VOLUME MASTER NAS CAMADAS      */
+/* ========================================== */
+.track-vol-container {
+    display: inline-flex; align-items: center; position: relative; margin-left: auto;
+}
+.track-vol-icon {
+    cursor: pointer; color: var(--text-muted); font-size: 1.2em; transition: 0.2s; padding: 4px;
+}
+.track-vol-icon:hover { color: var(--primary-cyan); }
+.track-vol-slider-wrapper {
+    width: 0; overflow: hidden; transition: width 0.3s ease; display: flex; align-items: center; opacity: 0;
+}
+.track-vol-container:hover .track-vol-slider-wrapper {
+    width: 65px; padding-left: 8px; opacity: 1;
+}
+.track-vol-slider {
+    width: 100%; height: 4px; -webkit-appearance: none; background: rgba(255,255,255,0.2); border-radius: 2px; outline: none; padding: 0;
+}
+.track-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; background: var(--primary-cyan); border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px rgba(0,210,255,0.5);
+}
+
+/* ========================================== */
+/* ESTILOS DOS ÁUDIOS NA BIBLIOTECA           */
+/* ========================================== */
+.item-midia.audio {
+    background: #1e293b;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.audio-title-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    font-size: 10px;
+    padding: 4px 6px;
+    display: flex;
+    align-items: center;
+    z-index: 3;
+}
+.marquee-wrapper {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+.marquee-text {
+    display: inline-block;
+    /* Fica parado por padrão */
+    transform: translateX(0);
+}
+@keyframes rolagemTexto {
+    0% { transform: translateX(0); }
+    10% { transform: translateX(0); }
+    90% { transform: translateX(calc(-100% + 50px)); }
+    100% { transform: translateX(calc(-100% + 50px)); }
+}
+.item-midia.audio:hover .marquee-text {
+    /* Ativa o letreiro apenas quando o mouse passa por cima */
+    animation: rolagemTexto 3.5s linear infinite alternate;
+}
+.audio-icon-bg {
+    position: absolute;
+    font-size: 2.2rem;
+    color: rgba(255,255,255,0.05);
+    z-index: 1;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+}
+.canvas-onda-bib {
+    width: calc(100% - 38px); /* Corta a largura para o botão azul respirar */
+    align-self: flex-start;
+    margin-left: 8px;
+    height: 40px;
+    position: relative;
+    z-index: 2;
+    margin-top: 15px; 
+}
+
