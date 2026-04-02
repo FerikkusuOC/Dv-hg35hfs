@@ -103,7 +103,7 @@ def escolher_imagem_ia_base64(query, b64_img, id_cena="Desconhecida"):
         }
 
         try:
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=120)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
                 if DEBUG_MODE: print(f"      [DEBUG] [CENA {id_cena}] Resposta bruta ({MODELO_VISAO}): '{resposta_ia}'")
@@ -168,7 +168,7 @@ Output:"""
         }
 
         try:
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=120)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
                 if DEBUG_MODE: print(f"      [DEBUG] [CENA {id_cena}] Resposta bruta ({MODELO_VISAO}): '{resposta_ia}'")
