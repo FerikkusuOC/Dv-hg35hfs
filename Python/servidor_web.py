@@ -141,8 +141,8 @@ def iniciar_servidor(cenas_visuais, faixas_musicais, duracao_total, arquivo_audi
         threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
         host_ip = '127.0.0.1'
     else:
-        print(" -> [Modo Nuvem/Colab detectado] Servidor aguardando conexões externas (0.0.0.0).")
-        print(" -> Utilize a URL gerada pelo seu serviço de túnel (ex: localtunnel).")
+        print(" -> [Modo Nuvem/Colab detectado] Servidor rodando na porta 5000 (0.0.0.0).")
+        print(" -> Volte para o início dos logs para clicar no link seguro do Google!")
         host_ip = '0.0.0.0'
 
     app.run(host=host_ip, port=5000, debug=False, use_reloader=False)

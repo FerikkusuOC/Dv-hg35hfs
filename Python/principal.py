@@ -112,8 +112,8 @@ def main():
         nucleos = os.cpu_count() or 2
         if SISTEMA == "Linux":
             workers_radar = max(2, nucleos * 2)
-            cenas_simultaneas = max(2, nucleos) # Evita sobrecarregar as vCPUs e o Ollama
-            workers_curadoria = 2
+            cenas_simultaneas = max(2, nucleos) 
+            workers_curadoria = 1
         else:
             workers_radar = 10
             cenas_simultaneas = 10 
