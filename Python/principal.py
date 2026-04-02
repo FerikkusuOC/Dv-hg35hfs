@@ -102,7 +102,7 @@ def main():
                 
         # Controle de Workers Inteligente
         cenas_simultaneas = 10 if SISTEMA_WINDOWS else 4
-        workers_visao = 8 if SISTEMA_WINDOWS else 2 
+        workers_visao = 8 if SISTEMA_WINDOWS else 1 
 
         print(f"\n[2.1/5] Mineração Paralela e Geração de Grids ({cenas_simultaneas} workers)...")
         def processar_cena_mineracao(i, cena):
