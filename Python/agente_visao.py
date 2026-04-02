@@ -6,7 +6,7 @@ import re
 import time
 from configuracoes import DEBUG_MODE
 
-# O TITULAR ABSOLUTO (Adaptado para o Colab)
+# O TITULAR ABSOLUTO (Nome corrigido)
 MODELO_VISAO = "qwen3-vl:8b"
 
 def descarregar_modelo(nome_modelo=MODELO_VISAO):
@@ -116,7 +116,9 @@ def escolher_imagem_ia_base64(query, b64_img, id_cena="Desconhecida"):
                     if tentativa == 1:
                         if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Falha na cena {id_cena}. Assumindo candidato 1.")
                         return 1
-                    time.sleep(1)
+                    if DEBUG_MODE: print(f"      [AVISO] Resposta vazia ou alucinação. Acionando Desfibrilador de VRAM...")
+                    descarregar_modelo(MODELO_VISAO)
+                    time.sleep(2)
                     continue 
 
                 return numeros_encontrados[0]
@@ -124,9 +126,10 @@ def escolher_imagem_ia_base64(query, b64_img, id_cena="Desconhecida"):
                 time.sleep(1)
         except Exception as e:
             if DEBUG_MODE: print(f"      [DEBUG] [Erro Conexão] [CENA {id_cena}]: {e}")
+            descarregar_modelo(MODELO_VISAO)
             if tentativa == 1:
                 return 1
-            time.sleep(1)
+            time.sleep(2)
             
     return 1
 
@@ -181,7 +184,9 @@ Output:"""
                     if tentativa == 1:
                         if DEBUG_MODE: print(f"      [DEBUG] [Aviso] Falha na cena {id_cena}. Trancando no centro [5].")
                         return [5]
-                    time.sleep(1)
+                    if DEBUG_MODE: print(f"      [AVISO] Resposta vazia ou alucinação. Acionando Desfibrilador de VRAM...")
+                    descarregar_modelo(MODELO_VISAO)
+                    time.sleep(2)
                     continue 
                     
                 if DEBUG_MODE: print(f"      [DEBUG] [Visão Focal] [CENA {id_cena}] Alvo trancado: {numeros_encontrados}")
@@ -190,8 +195,9 @@ Output:"""
                 time.sleep(1)
         except Exception as e:
             if DEBUG_MODE: print(f"      [DEBUG] [Erro Conexão] [CENA {id_cena}]: {e}")
+            descarregar_modelo(MODELO_VISAO)
             if tentativa == 1:
                 return [5]
-            time.sleep(1)
+            time.sleep(2)
             
     return [5]
