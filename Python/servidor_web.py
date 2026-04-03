@@ -132,19 +132,58 @@ def iniciar_servidor(cenas_visuais, faixas_musicais, duracao_total, arquivo_audi
     
     limpar_e_pre_gerar_proxies(cenas_visuais)
     
+    # --- SILENCIADOR DE LOGS (FLASK/WERKZEUG) ---
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR) # Esconde avisos e banners
+    os.environ['WERKZEUG_RUN_MAIN'] = 'true' # Desativa banners de reloader
+
     print("\n===================================================")
     print("   🌐 INICIANDO INTERFACE WEB DO MAESTRO...")
     print("===================================================")
     
-    # Detecção de Sistema para Inicialização do Servidor Web
+    url_publica = None
+    ip_senha = "Não detectado"
+
     if platform.system() == "Windows":
         threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
         host_ip = '127.0.0.1'
+        print(" -> [Windows] Servidor local ativado.")
     else:
-        print(" -> [Modo Nuvem/Colab detectado] Servidor rodando na porta 5000 (0.0.0.0).")
-        print(" -> Volte para o início dos logs para clicar no link seguro do Google!")
         host_ip = '0.0.0.0'
+        print(" -> [Colab] Cavando túnel público...")
+        
+        # Garante que o arquivo de link esteja limpo
+        if os.path.exists('lt_url.txt'): os.remove('lt_url.txt')
+        
+        # Inicia o túnel
+        os.system('npx localtunnel --port 5000 > lt_url.txt 2>&1 &')
+        
+        # Loop de espera com mais tentativas (até 40 segundos)
+        for _ in range(20):
+            time.sleep(2)
+            if os.path.exists('lt_url.txt'):
+                with open('lt_url.txt', 'r') as f:
+                    conteudo = f.read()
+                    match = re.search(r'(https://.*loca\.lt)', conteudo)
+                    if match:
+                        url_publica = match.group(1)
+                        break
+        
+        try:
+            ip_senha = urllib.request.urlopen('https://ipv4.icanhazip.com').read().decode('utf8').strip()
+        except: pass
 
+    # Se estiver no Colab, o link aparece com destaque logo antes do bloqueio do app.run
+    if url_publica:
+        print("\n" + "█"*50)
+        print(f"🚀 EDITOR ONLINE: {url_publica}")
+        print(f"🔑 SENHA (IP):    {ip_senha}")
+        print("█"*50 + "\n")
+    elif platform.system() != "Windows":
+        print("\n[AVISO] O túnel está demorando. Tente atualizar a página do Colab ou rodar o Boot Rápido.")
+
+    # Inicia o Flask (O banner 'Running on...' será suprimido pelo logger)
     app.run(host=host_ip, port=5000, debug=False, use_reloader=False)
 
 @app.route('/')
