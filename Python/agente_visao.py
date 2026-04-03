@@ -10,7 +10,7 @@ from configuracoes import DEBUG_MODE
 # --- DETECÇÃO DE SISTEMA E MODELO ---
 SISTEMA = platform.system()
 # A GPU T4 do Colab (Linux) lida perfeitamente com o 3b sem estourar o contexto.
-MODELO_VISAO = "qwen-27b-mindkut" if SISTEMA == "Linux" else "frob/qwen3.5-instruct:9b"
+MODELO_VISAO = "frob/qwen3.5-instruct:9b" if SISTEMA == "Linux" else "frob/qwen3.5-instruct:9b"
 
 def descarregar_modelo(nome_modelo=MODELO_VISAO):
     """Remove o modelo da VRAM para liberar espaço. Atua como um 'Desfibrilador'."""
