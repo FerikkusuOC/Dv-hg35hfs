@@ -58,7 +58,11 @@ def gerar_texto_draft(prompt, formato_json=True):
         res = ollama.chat(model=modelo_local, messages=[{'role': 'user', 'content': prompt}], options=opcoes)
         descarregar_modelo_ollama(modelo_local) 
         gc.collect()
-        return res['message']['content']
+        
+        # --- A TESOURA DE RACIOCÍNIO ---
+        resposta_bruta = res['message']['content']
+        resposta_limpa = re.sub(r'<think>.*?</think>', '', resposta_bruta, flags=re.DOTALL).strip()
+        return resposta_limpa
     except Exception as e:
         descarregar_modelo_ollama(modelo_local)
         return ""
@@ -108,7 +112,11 @@ def gerar_texto_revisor(prompt):
     try:
         res = ollama.chat(model=modelo_local, messages=[{'role': 'user', 'content': prompt}], options={'temperature': 0.0, 'keep_alive': 0, 'format': 'json'})
         descarregar_modelo_ollama(modelo_local) 
-        return res['message']['content']
+        
+        # --- A TESOURA DE RACIOCÍNIO ---
+        resposta_bruta = res['message']['content']
+        resposta_limpa = re.sub(r'<think>.*?</think>', '', resposta_bruta, flags=re.DOTALL).strip()
+        return resposta_limpa
     except Exception:
         descarregar_modelo_ollama(modelo_local)
         return ""
