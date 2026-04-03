@@ -114,7 +114,7 @@ def escolher_imagem_ia_base64(query, b64_img, id_cena="Desconhecida"):
         }
 
         try:
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=180)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
                 
