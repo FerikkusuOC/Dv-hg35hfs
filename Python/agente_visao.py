@@ -10,7 +10,7 @@ from configuracoes import DEBUG_MODE
 # --- DETECÇÃO DE SISTEMA E MODELO ---
 SISTEMA = platform.system()
 # A GPU T4 do Colab (Linux) lida perfeitamente com o 3b sem estourar o contexto.
-MODELO_VISAO = "frob/qwen3.5-instruct:9b" if SISTEMA == "Linux" else "frob/qwen3.5-instruct:9b"
+MODELO_VISAO = "qwen-27b-mindkut" if SISTEMA == "Linux" else "frob/qwen3.5-instruct:9b"
 
 def descarregar_modelo(nome_modelo=MODELO_VISAO):
     """Remove o modelo da VRAM para liberar espaço. Atua como um 'Desfibrilador'."""
@@ -114,9 +114,13 @@ def escolher_imagem_ia_base64(query, b64_img, id_cena="Desconhecida"):
         }
 
         try:
-            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=90)
+            res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
+                
+                # --- A TESOURA DE RACIOCÍNIO ---
+                resposta_ia = re.sub(r'<think>.*?</think>', '', resposta_ia, flags=re.DOTALL).strip()
+                
                 if DEBUG_MODE: print(f"      [DEBUG] [CENA {id_cena}] Resposta bruta ({MODELO_VISAO}): '{resposta_ia}'")
                 
                 numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=1)
@@ -190,6 +194,10 @@ Output:"""
             res = requests.post("http://127.0.0.1:11434/api/chat", json=payload, timeout=40)
             if res.status_code == 200:
                 resposta_ia = res.json().get("message", {}).get("content", "").strip()
+                
+                # --- A TESOURA DE RACIOCÍNIO ---
+                resposta_ia = re.sub(r'<think>.*?</think>', '', resposta_ia, flags=re.DOTALL).strip()
+                
                 if DEBUG_MODE: print(f"      [DEBUG] [CENA {id_cena}] Resposta bruta ({MODELO_VISAO}): '{resposta_ia}'")
                 
                 numeros_encontrados = extrair_numeros_seguros(resposta_ia, limite=3)
