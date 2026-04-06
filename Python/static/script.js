@@ -520,6 +520,11 @@ window.desenharWaveformsMusicas = function() {
         
         if(!buffer || !faixa) return;
         
+        // INJEÇÃO: Esconde o spinner e mostra a onda desenhada
+        let spinner = canvas.parentElement.querySelector('.spinner-carregando');
+        if(spinner) spinner.style.display = 'none';
+        canvas.style.display = 'block';
+        
         const ctx = canvas.getContext('2d');
         const duracaoClipe = faixa.fim - faixa.inicio;
         
@@ -1469,8 +1474,20 @@ function atualizarMostradorTempo(segundos) { document.getElementById('timeDispla
 async function uploadMidia(event) { 
     const file = event.target.files[0]; if (!file) return; 
     const formData = new FormData(); formData.append("file", file); 
+
+    // INJEÇÃO: Feedback visual imediato na biblioteca
+    const listaMidias = document.querySelector('.lista-midias');
+    if (listaMidias) {
+        listaMidias.insertAdjacentHTML('afterbegin', `
+            <div class="item-midia" id="loading_upload_lib" style="display:flex; flex-direction:column; align-items:center; justify-content:center; background: rgba(0,0,0,0.7);">
+                <div class="spinner-carregando" style="width:24px; height:24px; border-width:2px; border-top-color:var(--primary-cyan);"></div>
+                <span style="font-size:10px; margin-top:8px; color:var(--primary-cyan);">Enviando...</span>
+            </div>
+        `);
+    }
+
     await fetch('/api/upload_midia', { method: 'POST', body: formData }); 
-    carregarBiblioteca();
+    carregarBiblioteca(); // Ao recarregar a lista, o card temporário será sobrescrito pela mídia real
 }
 
 function acionarSubstituicao() { if (itemClicadoMenu === null) return; document.getElementById('menuContexto').style.display = 'none'; document.getElementById('fileReplace').click(); }
@@ -1565,51 +1582,61 @@ if (!document.getElementById('fileUploadTimeline')) {
     input.accept = 'image/*,video/*,audio/*';
     
     input.onchange = async function(event) {
-        const file = event.target.files[0]; if (!file) return; 
-        const formData = new FormData(); formData.append("file", file); 
-        
-        document.getElementById('painelProps').innerHTML = `<div class="info-box" style="text-align:center;"><p style="color:var(--primary-cyan);"><i class="ph ph-spinner-gap"></i> Sincronizando arquivo com o servidor...</p></div>`;
-        
-        try {
-            let resBibAntiga = await fetch('/api/biblioteca');
-            let bibAntiga = await resBibAntiga.json();
-            let arquivosAntigos = bibAntiga.importadas || [];
+    const file = event.target.files[0]; if (!file) return; 
+    const formData = new FormData(); formData.append("file", file); 
+    
+    document.getElementById('painelProps').innerHTML = `<div class="info-box" style="text-align:center;"><p style="color:var(--primary-cyan);"><i class="ph ph-spinner-gap"></i> Sincronizando arquivo com o servidor...</p></div>`;
+    
+    // INJEÇÃO: Criar bloco fantasma na Timeline instantaneamente
+    const tempoAgulha = dateToSeg(timeline.getCustomTime('agulha'));
+    let camada = window.camadaAlvoNovaCena || 'v1';
+    let idTemp = 'upload_' + Date.now();
+    itemsDataset.add({
+        id: idTemp, group: camada, start: segToDate(tempoAgulha), end: segToDate(tempoAgulha + 3.0),
+        content: `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); border-radius:4px;"><div class="spinner-carregando" style="width:20px;height:20px;border-width:2px;border-top-color:var(--primary-cyan);"></div><span style="font-size:11px; margin-left:8px; color:white;">Processando Proxy...</span></div>`
+    });
 
-            let resUpload = await fetch('/api/upload_midia', { method: 'POST', body: formData }); 
-            let dadosUpload = {};
-            try { dadosUpload = await resUpload.json(); } catch(e){}
+    try {
+        let resBibAntiga = await fetch('/api/biblioteca');
+        let bibAntiga = await resBibAntiga.json();
+        let arquivosAntigos = bibAntiga.importadas || [];
 
-            let nomeRealSalvo = null;
+        let resUpload = await fetch('/api/upload_midia', { method: 'POST', body: formData }); 
+        let dadosUpload = {};
+        try { dadosUpload = await resUpload.json(); } catch(e){}
+
+        let nomeRealSalvo = null;
+        if (dadosUpload && dadosUpload.nome_arquivo) nomeRealSalvo = dadosUpload.nome_arquivo;
+        else if (dadosUpload && dadosUpload.arquivo) nomeRealSalvo = dadosUpload.arquivo;
+
+        let tentativas = 0;
+        while (!nomeRealSalvo && tentativas < 4) {
+            await new Promise(r => setTimeout(r, 500)); 
+            let resBibNova = await fetch('/api/biblioteca');
+            let bibNova = await resBibNova.json();
+            let arquivosNovos = bibNova.importadas || [];
             
-            if (dadosUpload && dadosUpload.nome_arquivo) nomeRealSalvo = dadosUpload.nome_arquivo;
-            else if (dadosUpload && dadosUpload.arquivo) nomeRealSalvo = dadosUpload.arquivo;
-
-            let tentativas = 0;
-            while (!nomeRealSalvo && tentativas < 4) {
-                await new Promise(r => setTimeout(r, 500)); 
-                let resBibNova = await fetch('/api/biblioteca');
-                let bibNova = await resBibNova.json();
-                let arquivosNovos = bibNova.importadas || [];
-                
-                nomeRealSalvo = arquivosNovos.find(f => !arquivosAntigos.includes(f));
-                tentativas++;
-            }
-
-            if (!nomeRealSalvo) nomeRealSalvo = file.name.replace(/ /g, '_'); 
-
-            carregarBiblioteca(); 
-            
-            let camada = window.camadaAlvoNovaCena || null;
-            inserirMidiaNaTimeline(nomeRealSalvo, null, camada);
-            
-            setTimeout(() => { buscarTempo(dateToSeg(timeline.getCustomTime('agulha'))); }, 150);
-
-        } catch(e) {
-            console.error(e);
-            alert("Erro ao fazer upload da imagem.");
+            nomeRealSalvo = arquivosNovos.find(f => !arquivosAntigos.includes(f));
+            tentativas++;
         }
-        event.target.value = ''; 
-    };
+
+        if (!nomeRealSalvo) nomeRealSalvo = file.name.replace(/ /g, '_'); 
+
+        carregarBiblioteca(); 
+        
+        // INJEÇÃO: Remove o bloco fantasma e insere o arquivo já codificado
+        itemsDataset.remove(idTemp);
+        inserirMidiaNaTimeline(nomeRealSalvo, null, camada);
+        
+        setTimeout(() => { buscarTempo(dateToSeg(timeline.getCustomTime('agulha'))); }, 150);
+
+    } catch(e) {
+        console.error(e);
+        itemsDataset.remove(idTemp); // Limpa a sujeira se a rede cair
+        alert("Erro ao fazer upload da imagem.");
+    }
+    event.target.value = ''; 
+};
     document.body.appendChild(input);
 }
 
@@ -2298,13 +2325,26 @@ async function uploadNovaMusica(event) {
     const formData = new FormData();
     formData.append("file", file);
     
-    document.getElementById('listaMusicasModal').innerHTML = '<div style="text-align:center; padding: 20px;"><div class="spinner-carregando"></div><p>Enviando áudio...</p></div>';
+    document.getElementById('listaMusicasModal').innerHTML = '<div style="text-align:center; padding: 40px;"><div class="spinner-carregando" style="border-top-color:var(--primary-purple);"></div><p style="margin-top:15px; color:var(--text-main);">Enviando e processando áudio na nuvem...</p></div>';
     
     try {
         const res = await fetch('/api/upload_musica', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'ok') {
-            abrirModalSubstituirMusica(indexFaixaEditando);
+            // Recarrega a biblioteca do servidor
+            await abrirModalSubstituirMusica(indexFaixaEditando);
+            
+            // INJEÇÃO: Varre a DOM buscando a música que acabou de chegar e clica nela automaticamente
+            setTimeout(() => {
+                let itens = document.querySelectorAll('.music-item');
+                for(let el of itens) {
+                    if(el.getAttribute('data-titulo') === data.titulo) {
+                        el.click(); // Destrava o botão OK e carrega o preview
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        break;
+                    }
+                }
+            }, 500); // Aguarda o HTML ser desenhado
         }
     } catch (e) {
         alert("Erro ao enviar a música.");
