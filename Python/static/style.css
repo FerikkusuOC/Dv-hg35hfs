@@ -777,6 +777,12 @@ button:disabled {
 /* ========================================== */
 
 .ghost-loading-stripes {
+    background-size: 28px 28px;
+    animation: moveStripes 1s linear infinite;
+}
+
+/* Roxo para Áudio */
+.ghost-loading-stripes.purple {
     background: repeating-linear-gradient(
         45deg, 
         rgba(168, 85, 247, 0.15), 
@@ -784,8 +790,17 @@ button:disabled {
         rgba(168, 85, 247, 0.3) 10px, 
         rgba(168, 85, 247, 0.3) 20px
     );
-    background-size: 28px 28px;
-    animation: moveStripes 1s linear infinite;
+}
+
+/* Ciano para Vídeo/Imagem */
+.ghost-loading-stripes.cyan {
+    background: repeating-linear-gradient(
+        45deg, 
+        rgba(0, 210, 255, 0.15), 
+        rgba(0, 210, 255, 0.15) 10px, 
+        rgba(0, 210, 255, 0.3) 10px, 
+        rgba(0, 210, 255, 0.3) 20px
+    );
 }
 
 @keyframes moveStripes {
@@ -793,7 +808,5 @@ button:disabled {
     100% { background-position: 28px 0; }
 }
 
-/* Garante a rotação do ícone de loading caso a biblioteca demore a responder */
-.ph-spin {
-    animation: spin 1s linear infinite;
-}
+.ph-spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
