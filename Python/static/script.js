@@ -193,15 +193,16 @@ function reconstruirDaMemoria() {
         id: 'audio_locucao', group: 'a1', className: 'audio-clip', editable: false,
         start: segToDate(0), end: segToDate(projetoAtual.duracao),
         content: `
-            <div style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
-                <div style="font-size: 11px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; display: flex; align-items: center; gap: 5px;">
-                    <i class="ph-fill ph-waveform"></i> Faixa de Narração
-                </div>
-                <div class="waveform-container">
-                    <canvas class="waveform-canvas"></canvas>
-                </div>
-            </div>
-        `
+    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+        <div style="font-size: 11px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">
+            <i class="ph-fill ph-music-notes"></i> ${faixa.titulo} // (ou ${titulo}, mantenha o que já estava no original)
+        </div>
+        <div class="waveform-container" style="position: absolute; top:0; left:0; right:0; bottom:0; pointer-events: none; display:flex; align-items:center; justify-content:center;">
+            <div class="spinner-carregando" style="width:20px;height:20px;border-width:2px;border-top-color:#a855f7;"></div>
+            <canvas class="waveform-music-canvas" data-idx="${index}" style="width: 100%; height: 100%; display: none;"></canvas>
+        </div>
+    </div>
+`
     });
 
     if (projetoAtual.faixas_musicais) {
