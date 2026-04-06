@@ -1466,32 +1466,121 @@ function stepFrame(direcao) { let passo = direcao * (1 / FPS); let tempoAtual = 
 function loopDeReproducao() { if (!isPlaying) return; let currentTime = AudioEngine.obterTempoAtual(); timeline.setCustomTime(segToDate(currentTime), 'agulha'); atualizarMostradorTempo(currentTime); renderCanvas(currentTime); if (currentTime >= projetoAtual.duracao - 0.1) { togglePlay(); buscarTempo(0); } else { requestAnimationFrame(loopDeReproducao); } }
 function atualizarMostradorTempo(segundos) { document.getElementById('timeDisplay').innerText = `${formatTime(segundos)} / ${formatTime(projetoAtual.duracao)}`; }
 
-async function uploadMidia(event) { 
-    const file = event.target.files[0]; if (!file) return; 
-    const formData = new FormData(); formData.append("file", file); 
-    await fetch('/api/upload_midia', { method: 'POST', body: formData }); 
-    carregarBiblioteca();
-}
+window.uploadMidia = async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const ghostId = 'lib_import_ghost_' + Date.now();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // 1. Injeta o "Fantasma" (cor sólida) na Biblioteca Lateral
+    const container = document.getElementById('containerBiblioteca');
+    const lista = container.querySelector('.lista-midias');
+    
+    if (lista) {
+        const ghostHtml = `
+            <div class="item-midia" id="${ghostId}" style="background: #1a1a1a; border: 1px dashed var(--primary-cyan); position: relative; overflow: hidden;">
+                <div class="ghost-loading-stripes cyan" style="width:100%; height:100%; display: flex; align-items: center; justify-content: center;">
+                    <i class="ph ph-cloud-arrow-up ph-spin" style="font-size: 24px; color: var(--primary-cyan); opacity: 0.5;"></i>
+                    <div style="position:absolute; bottom:0; left:0; right:0; height:4px; background: rgba(0,0,0,0.5);">
+                        <div id="prog_lib_only_${ghostId}" style="height:100%; width:0%; background: var(--primary-cyan); transition: width 0.1s;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        // Insere no topo da lista
+        lista.insertAdjacentHTML('afterbegin', ghostHtml);
+    }
+
+    // 2. Inicia o Upload via XMLHttpRequest para monitorar progresso real no Colab
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload_midia", true);
+
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            let percent = (e.loaded / e.total) * 100;
+            let el = document.getElementById(`prog_lib_only_${ghostId}`);
+            if (el) el.style.width = percent + '%';
+        }
+    };
+
+    xhr.onload = function() {
+        // Remove o fantasma e atualiza a biblioteca com a mídia real (thumb gerada pelo server)
+        const ghostEl = document.getElementById(ghostId);
+        if (ghostEl) ghostEl.remove();
+        carregarBiblioteca();
+    };
+
+    xhr.onerror = function() {
+        const ghostEl = document.getElementById(ghostId);
+        if (ghostEl) ghostEl.remove();
+        alert("Erro na conexão com o Colab ao importar mídia.");
+    };
+
+    xhr.send(formData);
+    
+    // Limpa o input para permitir selecionar o mesmo arquivo novamente se necessário
+    event.target.value = '';
+};
 
 function acionarSubstituicao() { if (itemClicadoMenu === null) return; document.getElementById('menuContexto').style.display = 'none'; document.getElementById('fileReplace').click(); }
 
-async function uploadSubstituicao(event) {
-    const file = event.target.files[0]; if (!file || itemClicadoMenu === null) return;
-    const formData = new FormData(); formData.append("file", file); formData.append("id_cena", itemClicadoMenu);
+window.uploadSubstituicao = function(event) {
+    const file = event.target.files[0];
+    if (!file || itemClicadoMenu === null) return;
     
-    const res = await fetch('/api/substituir_imagem', { method: 'POST', body: formData });
-    const data = await res.json();
+    let idCena = itemClicadoMenu;
+    const ghostId = 'sub_ghost_' + Date.now();
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("id_cena", idCena);
+
+    // 1. Transforma a cena atual da timeline em um Fantasma
+    let originalContent = itemsDataset.get(idCena).content;
+    itemsDataset.update({
+        id: idCena,
+        content: `
+            <div class="ghost-loading-stripes cyan" style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+                <div style="font-size: 10px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8); display:flex; align-items:center; gap:5px;">
+                    <i class="ph ph-spinner-gap ph-spin"></i> Substituindo...
+                </div>
+                <div style="position: absolute; bottom: 0; left: 0; height: 4px; background: white; width: 0%; transition: width 0.1s ease-out;" id="prog_sub_${idCena}"></div>
+            </div>
+        `
+    });
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/substituir_imagem", true);
     
-    if(data.status === 'ok') {
-        projetoAtual.cenas[itemClicadoMenu].arquivo_origem = data.novo_arquivo;
-        delete imageCache[itemClicadoMenu];
-        sincronizarJSON(); 
-        reconstruirDaMemoria(); 
-        verificarECriarCamadas();
-        pushHistory(); 
-        carregarBiblioteca();
-    }
-}
+    xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+            let percent = (e.loaded / e.total) * 100;
+            let el = document.getElementById(`prog_sub_${idCena}`);
+            if (el) el.style.width = percent + '%';
+        }
+    };
+
+    xhr.onload = async function () {
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            projetoAtual.cenas[idCena].arquivo_origem = data.novo_arquivo;
+            delete imageCache[idCena];
+            
+            // Recarrega a cena oficialmente
+            sincronizarJSON();
+            reconstruirDaMemoria();
+            verificarECriarCamadas();
+            pushHistory();
+            carregarBiblioteca();
+        } else {
+            alert("Erro no upload.");
+            itemsDataset.update({ id: idCena, content: originalContent });
+        }
+    };
+    xhr.send(formData);
+    event.target.value = '';
+};
 
 window.inserirMidiaNaTimeline = function(nomeArquivo, idRef = null, camadaAlvo = null) { 
     const tempoAgulha = dateToSeg(timeline.getCustomTime('agulha')); 
@@ -1564,52 +1653,101 @@ if (!document.getElementById('fileUploadTimeline')) {
     input.style.display = 'none';
     input.accept = 'image/*,video/*,audio/*';
     
-    input.onchange = async function(event) {
-        const file = event.target.files[0]; if (!file) return; 
-        const formData = new FormData(); formData.append("file", file); 
-        
-        document.getElementById('painelProps').innerHTML = `<div class="info-box" style="text-align:center;"><p style="color:var(--primary-cyan);"><i class="ph ph-spinner-gap"></i> Sincronizando arquivo com o servidor...</p></div>`;
-        
-        try {
-            let resBibAntiga = await fetch('/api/biblioteca');
-            let bibAntiga = await resBibAntiga.json();
-            let arquivosAntigos = bibAntiga.importadas || [];
+    input.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
 
-            let resUpload = await fetch('/api/upload_midia', { method: 'POST', body: formData }); 
-            let dadosUpload = {};
-            try { dadosUpload = await resUpload.json(); } catch(e){}
+        const ghostId = 'new_media_ghost_' + Date.now();
+        const formData = new FormData();
+        formData.append("file", file);
 
-            let nomeRealSalvo = null;
-            
-            if (dadosUpload && dadosUpload.nome_arquivo) nomeRealSalvo = dadosUpload.nome_arquivo;
-            else if (dadosUpload && dadosUpload.arquivo) nomeRealSalvo = dadosUpload.arquivo;
+        let camada = window.camadaAlvoNovaCena || 'v1';
+        let tempoAgulha = dateToSeg(timeline.getCustomTime('agulha'));
 
-            let tentativas = 0;
-            while (!nomeRealSalvo && tentativas < 4) {
-                await new Promise(r => setTimeout(r, 500)); 
-                let resBibNova = await fetch('/api/biblioteca');
-                let bibNova = await resBibNova.json();
-                let arquivosNovos = bibNova.importadas || [];
-                
-                nomeRealSalvo = arquivosNovos.find(f => !arquivosAntigos.includes(f));
-                tentativas++;
-            }
+        // 1. Injeta o Fantasma na TIMELINE
+        itemsDataset.add({
+            id: ghostId, group: camada, start: segToDate(tempoAgulha), end: segToDate(tempoAgulha + 3.0),
+            content: `
+                <div class="ghost-loading-stripes cyan" style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+                    <div style="font-size: 10px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8); display:flex; align-items:center; gap:5px;">
+                        <i class="ph ph-spinner-gap ph-spin"></i> Enviando...
+                    </div>
+                    <div style="position: absolute; bottom: 0; left: 0; height: 4px; background: white; width: 0%; transition: width 0.1s ease-out;" id="prog_tl_${ghostId}"></div>
+                </div>
+            `
+        });
 
-            if (!nomeRealSalvo) nomeRealSalvo = file.name.replace(/ /g, '_'); 
-
-            carregarBiblioteca(); 
-            
-            let camada = window.camadaAlvoNovaCena || null;
-            inserirMidiaNaTimeline(nomeRealSalvo, null, camada);
-            
-            setTimeout(() => { buscarTempo(dateToSeg(timeline.getCustomTime('agulha'))); }, 150);
-
-        } catch(e) {
-            console.error(e);
-            alert("Erro ao fazer upload da imagem.");
+        // 2. Injeta o Fantasma na BIBLIOTECA LATERAL ao mesmo tempo
+        const container = document.getElementById('containerBiblioteca');
+        const lista = container ? container.querySelector('.lista-midias') : null;
+        if (lista) {
+            const ghostLibHtml = `
+                <div class="item-midia" id="lib_${ghostId}" style="background: #1a1a1a; border: 1px dashed var(--primary-cyan); position: relative; overflow: hidden;">
+                    <div class="ghost-loading-stripes cyan" style="width:100%; height:100%; display: flex; align-items: center; justify-content: center;">
+                        <i class="ph ph-cloud-arrow-up ph-spin" style="font-size: 24px; color: var(--primary-cyan); opacity: 0.5;"></i>
+                        <div style="position:absolute; bottom:0; left:0; right:0; height:4px; background: rgba(0,0,0,0.5);">
+                            <div id="prog_lib_${ghostId}" style="height:100%; width:0%; background: var(--primary-cyan); transition: width 0.1s;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lista.insertAdjacentHTML('afterbegin', ghostLibHtml);
         }
-        event.target.value = ''; 
+
+        // 3. Inicia o Upload via XHR monitorando o progresso em DOIS lugares
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload_midia", true);
+
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                let percent = (e.loaded / e.total) * 100;
+                
+                // Atualiza barra da Timeline
+                let elTl = document.getElementById(`prog_tl_${ghostId}`);
+                if (elTl) elTl.style.width = percent + '%';
+                
+                // Atualiza barra da Biblioteca
+                let elLib = document.getElementById(`prog_lib_${ghostId}`);
+                if (elLib) elLib.style.width = percent + '%';
+            }
+        };
+
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                let nomeReal = data.nome_arquivo || data.arquivo;
+                
+                // Limpa os dois fantasmas da tela
+                itemsDataset.remove(ghostId);
+                let libGhost = document.getElementById(`lib_${ghostId}`);
+                if (libGhost) libGhost.remove();
+                
+                // Insere a mídia oficial
+                inserirMidiaNaTimeline(nomeReal, null, camada);
+                carregarBiblioteca();
+            } else {
+                limparFantasmasTimeline(ghostId);
+                alert("Erro ao enviar mídia.");
+            }
+        };
+        
+        xhr.onerror = function() {
+            limparFantasmasTimeline(ghostId);
+            alert("Erro na conexão com o servidor ao importar mídia.");
+        };
+
+        xhr.send(formData);
+        
+        // Limpa o input para novos envios
+        event.target.value = '';
     };
+
+    // Função auxiliar para limpeza em caso de falha
+    function limparFantasmasTimeline(ghostId) {
+        itemsDataset.remove(ghostId);
+        let libGhost = document.getElementById(`lib_${ghostId}`);
+        if (libGhost) libGhost.remove();
+    }
     document.body.appendChild(input);
 }
 
@@ -2291,24 +2429,163 @@ function seekPreviewAudio(percent) {
     }
 }
 
-async function uploadNovaMusica(event) {
+window.uploadNovaMusica = function(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
+    // Limpa o input file para permitir enviar o mesmo arquivo de novo se o usuário quiser
+    event.target.value = '';
+
+    // 1. Fecha o modal imediatamente para não prender o usuário
+    fecharModalMusica();
+
     const formData = new FormData();
     formData.append("file", file);
-    
-    document.getElementById('listaMusicasModal').innerHTML = '<div style="text-align:center; padding: 20px;"><div class="spinner-carregando"></div><p>Enviando áudio...</p></div>';
-    
-    try {
-        const res = await fetch('/api/upload_musica', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.status === 'ok') {
-            abrirModalSubstituirMusica(indexFaixaEditando);
+
+    // Identificadores únicos para as "mídias fantasmas"
+    let ghostId = 'ghost_music_' + Date.now();
+    let isNova = (indexFaixaEditando === 'nova');
+
+    // 2. Injeta o Fantasma na Biblioteca (Painel Esquerdo)
+    let listaMidias = document.querySelector('.lista-midias');
+    if (listaMidias) {
+        let libGhostHtml = `
+            <div class="item-midia audio" id="lib_${ghostId}">
+                <div class="audio-title-bar">
+                    <i class="ph ph-spinner-gap ph-spin" style="color: var(--primary-cyan);"></i>
+                    <div class="marquee-wrapper">
+                        <span class="marquee-text">Enviando...</span>
+                    </div>
+                </div>
+                <div style="position:absolute; top:50%; left:10%; right:10%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; transform:translateY(-50%);">
+                    <div style="height:100%; width:0%; background:var(--primary-cyan); border-radius:2px; transition:width 0.1s ease-out;" id="lib_prog_${ghostId}"></div>
+                </div>
+            </div>
+        `;
+        
+        let subHeaders = listaMidias.querySelectorAll('.sub-header-lib');
+        let inserted = false;
+        // Tenta inserir a mídia fantasma logo abaixo do cabeçalho "Áudios do Projeto"
+        for (let i = 0; i < subHeaders.length; i++) {
+            if (subHeaders[i].innerHTML.includes('Áudios')) {
+                subHeaders[i].insertAdjacentHTML('afterend', libGhostHtml);
+                inserted = true;
+                break;
+            }
         }
-    } catch (e) {
-        alert("Erro ao enviar a música.");
-        abrirModalSubstituirMusica(indexFaixaEditando);
+        if (!inserted) listaMidias.insertAdjacentHTML('afterbegin', libGhostHtml);
+    }
+
+    // 3. Injeta o Fantasma na Timeline (Estética Hachurada Animada)
+    let contentGhost = `
+        <div class="ghost-loading-stripes" style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+            <div style="font-size: 11px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8); display:flex; align-items:center; gap:5px;">
+                <i class="ph ph-spinner-gap ph-spin"></i> Processando Áudio...
+            </div>
+            <div style="position: absolute; bottom: 0; left: 0; height: 4px; background: var(--primary-cyan); width: 0%; transition: width 0.1s ease-out;" id="prog_${ghostId}"></div>
+        </div>
+    `;
+
+    if (isNova) {
+        let startTempo = dateToSeg(timeline.getCustomTime('agulha'));
+        let endTempo = startTempo + 10.0; // Espaço temporário de 10s
+        itemsDataset.add({
+            id: ghostId, group: 'a2', className: 'music-clip',
+            content: contentGhost, start: segToDate(startTempo), end: segToDate(endTempo), editable: false
+        });
+    } else {
+        // Se estiver substituindo, transforma a faixa atual em "Fantasma"
+        let itemAtual = itemsDataset.get(`musica_${indexFaixaEditando}`);
+        if (itemAtual) {
+            itemsDataset.update({ id: `musica_${indexFaixaEditando}`, content: contentGhost });
+        }
+    }
+
+    // 4. Inicia o Upload Real via XHR (para capturar o progresso no Colab)
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload_musica", true);
+
+    xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+            let percentComplete = (e.loaded / e.total) * 100;
+            let elProg = document.getElementById(`prog_${ghostId}`);
+            if (elProg) elProg.style.width = percentComplete + '%';
+            
+            let elLibProg = document.getElementById(`lib_prog_${ghostId}`);
+            if (elLibProg) elLibProg.style.width = percentComplete + '%';
+        }
+    };
+
+    xhr.onload = async function () {
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.status === 'ok') {
+                
+                // Remove o fantasma da biblioteca visual
+                let libGhost = document.getElementById(`lib_${ghostId}`);
+                if (libGhost) libGhost.remove();
+
+                if (isNova) {
+                    // Remove o fantasma da timeline e insere a faixa oficial (que recalcula ondas e salva JSON)
+                    itemsDataset.remove(ghostId);
+                    inserirAudioNaTimeline(data.arquivo, data.titulo);
+                } else {
+                    // Atualiza a faixa que já existia com os dados novos
+                    let faixa = projetoAtual.faixas_musicais[indexFaixaEditando];
+                    faixa.arquivo = data.arquivo;
+                    faixa.titulo = data.titulo;
+                    faixa.clima = data.clima;
+                    
+                    let dsItem = itemsDataset.get(`musica_${indexFaixaEditando}`);
+                    if (dsItem) {
+                        dsItem.content = `
+                            <div style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+                                <div style="font-size: 11px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">
+                                    <i class="ph-fill ph-music-notes"></i> ${faixa.titulo}
+                                </div>
+                                <div class="waveform-container" style="position: absolute; top:0; left:0; right:0; bottom:0; pointer-events: none;">
+                                    <canvas class="waveform-music-canvas" data-idx="${indexFaixaEditando}" style="width: 100%; height: 100%; display: block;"></canvas>
+                                </div>
+                            </div>
+                        `;
+                        itemsDataset.update(dsItem);
+                    }
+                    
+                    sincronizarJSON();
+                    pushHistory();
+                    atualizarPainelMusica(indexFaixaEditando);
+                    
+                    // Inicializa o motor de áudio para decodificar o arquivo e pinta a waveform
+                    await AudioEngine.inicializar();
+                    setTimeout(() => { if(window.desenharWaveformsMusicas) window.desenharWaveformsMusicas(); }, 200);
+                }
+                
+                // Recarrega a biblioteca lateral com a lista oficial
+                carregarBiblioteca();
+            }
+        } else {
+            alert("Erro ao processar o áudio no servidor.");
+            cleanupGhost(isNova, ghostId);
+        }
+    };
+
+    xhr.onerror = function() {
+        alert("Falha na rede ao enviar a música. O túnel do Colab pode ter interrompido a conexão.");
+        cleanupGhost(isNova, ghostId);
+    };
+
+    xhr.send(formData);
+};
+
+// Função auxiliar para reverter a UI em caso de queda de rede no Colab
+function cleanupGhost(isNova, ghostId) {
+    let libGhost = document.getElementById(`lib_${ghostId}`);
+    if (libGhost) libGhost.remove();
+    
+    if (isNova) {
+        itemsDataset.remove(ghostId);
+    } else {
+        reconstruirDaMemoria(); // Força a timeline a voltar para o estado salvo anterior
     }
 }
 
