@@ -2291,24 +2291,163 @@ function seekPreviewAudio(percent) {
     }
 }
 
-async function uploadNovaMusica(event) {
+window.uploadNovaMusica = function(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
+    // Limpa o input file para permitir enviar o mesmo arquivo de novo se o usuário quiser
+    event.target.value = '';
+
+    // 1. Fecha o modal imediatamente para não prender o usuário
+    fecharModalMusica();
+
     const formData = new FormData();
     formData.append("file", file);
-    
-    document.getElementById('listaMusicasModal').innerHTML = '<div style="text-align:center; padding: 20px;"><div class="spinner-carregando"></div><p>Enviando áudio...</p></div>';
-    
-    try {
-        const res = await fetch('/api/upload_musica', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.status === 'ok') {
-            abrirModalSubstituirMusica(indexFaixaEditando);
+
+    // Identificadores únicos para as "mídias fantasmas"
+    let ghostId = 'ghost_music_' + Date.now();
+    let isNova = (indexFaixaEditando === 'nova');
+
+    // 2. Injeta o Fantasma na Biblioteca (Painel Esquerdo)
+    let listaMidias = document.querySelector('.lista-midias');
+    if (listaMidias) {
+        let libGhostHtml = `
+            <div class="item-midia audio" id="lib_${ghostId}">
+                <div class="audio-title-bar">
+                    <i class="ph ph-spinner-gap ph-spin" style="color: var(--primary-cyan);"></i>
+                    <div class="marquee-wrapper">
+                        <span class="marquee-text">Enviando...</span>
+                    </div>
+                </div>
+                <div style="position:absolute; top:50%; left:10%; right:10%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; transform:translateY(-50%);">
+                    <div style="height:100%; width:0%; background:var(--primary-cyan); border-radius:2px; transition:width 0.1s ease-out;" id="lib_prog_${ghostId}"></div>
+                </div>
+            </div>
+        `;
+        
+        let subHeaders = listaMidias.querySelectorAll('.sub-header-lib');
+        let inserted = false;
+        // Tenta inserir a mídia fantasma logo abaixo do cabeçalho "Áudios do Projeto"
+        for (let i = 0; i < subHeaders.length; i++) {
+            if (subHeaders[i].innerHTML.includes('Áudios')) {
+                subHeaders[i].insertAdjacentHTML('afterend', libGhostHtml);
+                inserted = true;
+                break;
+            }
         }
-    } catch (e) {
-        alert("Erro ao enviar a música.");
-        abrirModalSubstituirMusica(indexFaixaEditando);
+        if (!inserted) listaMidias.insertAdjacentHTML('afterbegin', libGhostHtml);
+    }
+
+    // 3. Injeta o Fantasma na Timeline (Estética Hachurada Animada)
+    let contentGhost = `
+        <div class="ghost-loading-stripes" style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+            <div style="font-size: 11px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8); display:flex; align-items:center; gap:5px;">
+                <i class="ph ph-spinner-gap ph-spin"></i> Processando Áudio...
+            </div>
+            <div style="position: absolute; bottom: 0; left: 0; height: 4px; background: var(--primary-cyan); width: 0%; transition: width 0.1s ease-out;" id="prog_${ghostId}"></div>
+        </div>
+    `;
+
+    if (isNova) {
+        let startTempo = dateToSeg(timeline.getCustomTime('agulha'));
+        let endTempo = startTempo + 10.0; // Espaço temporário de 10s
+        itemsDataset.add({
+            id: ghostId, group: 'a2', className: 'music-clip',
+            content: contentGhost, start: segToDate(startTempo), end: segToDate(endTempo), editable: false
+        });
+    } else {
+        // Se estiver substituindo, transforma a faixa atual em "Fantasma"
+        let itemAtual = itemsDataset.get(`musica_${indexFaixaEditando}`);
+        if (itemAtual) {
+            itemsDataset.update({ id: `musica_${indexFaixaEditando}`, content: contentGhost });
+        }
+    }
+
+    // 4. Inicia o Upload Real via XHR (para capturar o progresso no Colab)
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload_musica", true);
+
+    xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+            let percentComplete = (e.loaded / e.total) * 100;
+            let elProg = document.getElementById(`prog_${ghostId}`);
+            if (elProg) elProg.style.width = percentComplete + '%';
+            
+            let elLibProg = document.getElementById(`lib_prog_${ghostId}`);
+            if (elLibProg) elLibProg.style.width = percentComplete + '%';
+        }
+    };
+
+    xhr.onload = async function () {
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.status === 'ok') {
+                
+                // Remove o fantasma da biblioteca visual
+                let libGhost = document.getElementById(`lib_${ghostId}`);
+                if (libGhost) libGhost.remove();
+
+                if (isNova) {
+                    // Remove o fantasma da timeline e insere a faixa oficial (que recalcula ondas e salva JSON)
+                    itemsDataset.remove(ghostId);
+                    inserirAudioNaTimeline(data.arquivo, data.titulo);
+                } else {
+                    // Atualiza a faixa que já existia com os dados novos
+                    let faixa = projetoAtual.faixas_musicais[indexFaixaEditando];
+                    faixa.arquivo = data.arquivo;
+                    faixa.titulo = data.titulo;
+                    faixa.clima = data.clima;
+                    
+                    let dsItem = itemsDataset.get(`musica_${indexFaixaEditando}`);
+                    if (dsItem) {
+                        dsItem.content = `
+                            <div style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+                                <div style="font-size: 11px; font-weight: 600; color: white; padding: 2px 8px; z-index: 2; position: absolute; text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">
+                                    <i class="ph-fill ph-music-notes"></i> ${faixa.titulo}
+                                </div>
+                                <div class="waveform-container" style="position: absolute; top:0; left:0; right:0; bottom:0; pointer-events: none;">
+                                    <canvas class="waveform-music-canvas" data-idx="${indexFaixaEditando}" style="width: 100%; height: 100%; display: block;"></canvas>
+                                </div>
+                            </div>
+                        `;
+                        itemsDataset.update(dsItem);
+                    }
+                    
+                    sincronizarJSON();
+                    pushHistory();
+                    atualizarPainelMusica(indexFaixaEditando);
+                    
+                    // Inicializa o motor de áudio para decodificar o arquivo e pinta a waveform
+                    await AudioEngine.inicializar();
+                    setTimeout(() => { if(window.desenharWaveformsMusicas) window.desenharWaveformsMusicas(); }, 200);
+                }
+                
+                // Recarrega a biblioteca lateral com a lista oficial
+                carregarBiblioteca();
+            }
+        } else {
+            alert("Erro ao processar o áudio no servidor.");
+            cleanupGhost(isNova, ghostId);
+        }
+    };
+
+    xhr.onerror = function() {
+        alert("Falha na rede ao enviar a música. O túnel do Colab pode ter interrompido a conexão.");
+        cleanupGhost(isNova, ghostId);
+    };
+
+    xhr.send(formData);
+};
+
+// Função auxiliar para reverter a UI em caso de queda de rede no Colab
+function cleanupGhost(isNova, ghostId) {
+    let libGhost = document.getElementById(`lib_${ghostId}`);
+    if (libGhost) libGhost.remove();
+    
+    if (isNova) {
+        itemsDataset.remove(ghostId);
+    } else {
+        reconstruirDaMemoria(); // Força a timeline a voltar para o estado salvo anterior
     }
 }
 
