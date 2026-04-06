@@ -19,6 +19,14 @@ let previewStartTime = 0;
 let previewSfxNode = null;
 let isPreviewing = false;
 
+// --- MOTOR DE DESEMPENHO ADAPTATIVO ---
+window.ConfigPreview = {
+    escala: 1.0,        // 1.0 = Original, 0.5 = Metade (Mais rápido), 0.25 = Batata Mode
+    fpsLimit: 0,        // 0 = Ilimitado (Monitor), 30 = Travado em 30, 15 = Travado em 15
+    noTransitions: false // True = Pula o WebGL e faz corte seco
+};
+let lastFrameTime = 0;
+
 window._advMenuOpen = false;
 
 // Rastreador Global da Tecla Shift para o Efeito Magnético
@@ -1414,6 +1422,11 @@ function renderCanvas(tempoSegundos) {
     
     let t_local_A = (tempoSegundos - flatA.inicio) + durTransAnterior; let duracaoVisualA = (flatA.fim - flatA.inicio) + durTransAnterior;
     let inTransition = false; let flatB = null; let rawB = null; let progressoTrans = 0; let tipoTrans = getTransicao(rawA, rawA.id); let duracaoTrans = 0;
+    
+    // 2. BYPASS DE SHADERS (Corte Seco de Desempenho)
+    if (window.ConfigPreview && window.ConfigPreview.noTransitions) {
+        tipoTrans = 'nenhuma';
+    }
 
     if (idxPlano < timelinePlanificada.length - 1 && tipoTrans !== 'nenhuma') {
         flatB = timelinePlanificada[idxPlano + 1];
@@ -1463,7 +1476,34 @@ function togglePlay() {
 
 function buscarTempo(segundos) { if (segundos < 0) segundos = 0; if (segundos > projetoAtual.duracao) segundos = projetoAtual.duracao; AudioEngine.buscar(segundos); timeline.setCustomTime(segToDate(segundos), 'agulha'); atualizarMostradorTempo(segundos); renderCanvas(segundos); }
 function stepFrame(direcao) { let passo = direcao * (1 / FPS); let tempoAtual = AudioEngine.obterTempoAtual(); if (isPlaying) togglePlay(); buscarTempo(tempoAtual + passo); }
-function loopDeReproducao() { if (!isPlaying) return; let currentTime = AudioEngine.obterTempoAtual(); timeline.setCustomTime(segToDate(currentTime), 'agulha'); atualizarMostradorTempo(currentTime); renderCanvas(currentTime); if (currentTime >= projetoAtual.duracao - 0.1) { togglePlay(); buscarTempo(0); } else { requestAnimationFrame(loopDeReproducao); } }
+function loopDeReproducao(timestamp) { 
+    if (!isPlaying) return; 
+
+    // 1. LIMITADOR DE FPS (Throttling)
+    if (window.ConfigPreview.fpsLimit > 0) {
+        if (!timestamp) timestamp = performance.now();
+        const elapsed = timestamp - lastFrameTime;
+        const fpsInterval = 1000 / window.ConfigPreview.fpsLimit;
+        
+        if (elapsed < fpsInterval) {
+            requestAnimationFrame(loopDeReproducao);
+            return;
+        }
+        lastFrameTime = timestamp - (elapsed % fpsInterval);
+    }
+
+    let currentTime = AudioEngine.obterTempoAtual(); 
+    timeline.setCustomTime(segToDate(currentTime), 'agulha'); 
+    atualizarMostradorTempo(currentTime); 
+    
+    renderCanvas(currentTime); 
+    
+    if (currentTime >= projetoAtual.duracao - 0.1) { 
+        togglePlay(); buscarTempo(0); 
+    } else { 
+        requestAnimationFrame(loopDeReproducao); 
+    } 
+}
 function atualizarMostradorTempo(segundos) { document.getElementById('timeDisplay').innerText = `${formatTime(segundos)} / ${formatTime(projetoAtual.duracao)}`; }
 
 window.uploadMidia = async function(event) {
@@ -2822,5 +2862,78 @@ window.mostrarVideoPronto = function(url) {
     
     document.getElementById('btnDownloadFinal').href = url;
 };
+
+window.ConfigPreview = window.ConfigPreview || { escala: 1.0, fpsLimit: 0, noTransitions: false };
+
+// Adicionamos "btnElement" para o JavaScript saber exatamente quem ele deve pintar de azul
+window.mudarQualidadePreview = function(btnElement, escala, fps, noTransitions) {
+    window.ConfigPreview.escala = escala;
+    window.ConfigPreview.fpsLimit = fps;
+    window.ConfigPreview.noTransitions = noTransitions;
+
+    const mainCanvas = document.getElementById('previewCanvas');
+    let isVertical = false; 
+    let form = (projetoAtual && projetoAtual.formato) ? projetoAtual.formato.toLowerCase() : "";
+    if (form.includes('short') || form === 'vertical' || form === 'tiktok') isVertical = true;
+    if (projetoAtual && projetoAtual.resolucao && projetoAtual.resolucao[0] < projetoAtual.resolucao[1]) isVertical = true;
+
+    // Resolução base nativa
+    let baseW = isVertical ? 1080 : 1920;
+    let baseH = isVertical ? 1920 : 1080;
+
+    // 3. DOWNSCALING INTERNO DO CANVAS
+    mainCanvas.width = baseW * escala; 
+    mainCanvas.height = baseH * escala; 
+    offCanvasA.width = mainCanvas.width; offCanvasA.height = mainCanvas.height; 
+    offCanvasB.width = mainCanvas.width; offCanvasB.height = mainCanvas.height;
+    
+    // Alerta o OpenGL que a "janela" diminuiu
+    if(typeof WebGLRenderer !== 'undefined' && WebGLRenderer.gl) {
+        WebGLRenderer.gl.viewport(0, 0, mainCanvas.width, mainCanvas.height);
+    }
+    
+    if(typeof renderCanvas === 'function') renderCanvas(AudioEngine.obterTempoAtual());
+    
+    // Atualiza a UI visual dos botões
+    document.querySelectorAll('.btn-perf').forEach(b => {
+        b.style.borderColor = 'rgba(255,255,255,0.1)';
+        b.style.color = 'var(--text-muted)';
+    });
+    
+    // O erro estava aqui. Agora aplicamos a cor corretamente usando a variável recebida
+    if (btnElement) {
+        btnElement.style.borderColor = 'var(--primary-cyan)';
+        btnElement.style.color = 'var(--primary-cyan)';
+    }
+};
+
+// Injetar o botão de Configuração no HTML Dinamicamente (Agora com o "this" no onclick e 480p)
+setTimeout(() => {
+    const controlsCenter = document.querySelector('.player-controls-center');
+    if(controlsCenter && !document.getElementById('menuDesempenho')) {
+        controlsCenter.insertAdjacentHTML('afterend', `
+            <div style="position: relative; display: flex; align-items: center; margin-left: 10px;">
+                <button class="player-btn" onclick="event.stopPropagation(); document.getElementById('menuDesempenho').classList.toggle('select-show')" title="Desempenho do Preview">
+                    <i class="ph ph-gauge"></i>
+                </button>
+                <div class="select-items context-menu" id="menuDesempenho" style="bottom: 120%; top: auto; right: 0; left: auto; width: 200px; padding: 10px;" onclick="event.stopPropagation();">
+                    <p style="margin: 0 0 10px 0; font-size: 0.8em; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Qualidade de Reprodução</p>
+                    
+                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 1.0, 0, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid var(--primary-cyan); color: var(--primary-cyan); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
+                        <i class="ph-fill ph-monitor-play"></i> Máxima (1080p, Fluido)
+                    </button>
+                    
+                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.44, 30, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
+                        <i class="ph ph-rocket"></i> Equilibrada (480p, 30fps)
+                    </button>
+                    
+                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.25, 15, true); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.85em;">
+                        <i class="ph ph-warning-circle"></i> PC Fraco (270p, Sem Efeitos)
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+}, 1000);
 
 window.onload = inicializar;
