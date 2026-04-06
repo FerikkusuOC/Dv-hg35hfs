@@ -772,3 +772,28 @@ button:disabled {
     margin-top: 15px; 
 }
 
+/* ========================================== */
+/* ANIMAÇÕES DA MÍDIA FANTASMA (UPLOAD)       */
+/* ========================================== */
+
+.ghost-loading-stripes {
+    background: repeating-linear-gradient(
+        45deg, 
+        rgba(168, 85, 247, 0.15), 
+        rgba(168, 85, 247, 0.15) 10px, 
+        rgba(168, 85, 247, 0.3) 10px, 
+        rgba(168, 85, 247, 0.3) 20px
+    );
+    background-size: 28px 28px;
+    animation: moveStripes 1s linear infinite;
+}
+
+@keyframes moveStripes {
+    0% { background-position: 0 0; }
+    100% { background-position: 28px 0; }
+}
+
+/* Garante a rotação do ícone de loading caso a biblioteca demore a responder */
+.ph-spin {
+    animation: spin 1s linear infinite;
+}
