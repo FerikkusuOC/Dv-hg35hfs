@@ -1062,6 +1062,9 @@ async function inicializar() {
 
         onMove: function (item, callback) { 
             if (typeof item.id === 'string' && item.id.startsWith('musica_')) {
+                // A MÁGICA: Confirma a nova posição na timeline ANTES de salvar os dados
+                callback(item); 
+                
                 let idx = parseInt(item.id.split('_')[1]);
                 projetoAtual.faixas_musicais[idx].inicio = dateToSeg(item.start);
                 projetoAtual.faixas_musicais[idx].fim = dateToSeg(item.end);
@@ -1075,13 +1078,17 @@ async function inicializar() {
                     if (overlap > 0) { atual.f.fade_out = overlap; prox.f.fade_in = overlap; } 
                     else { atual.f.fade_out = 0; prox.f.fade_in = 0; }
                 }
-                sincronizarJSON(); pushHistory();
+                
+                // Agora o sincronizarJSON() vai ler a memória com o bloco já na posição certa!
+                sincronizarJSON(); 
+                pushHistory();
+                
                 if(window.desenharWaveformsMusicas) window.desenharWaveformsMusicas();
                 if (typeof window.atualizarPainelMusica === 'function' && cenaAtivaPropriedades !== -1 && typeof cenaAtivaPropriedades === 'string' && cenaAtivaPropriedades.startsWith('musica_')) {
                     let currentPanelIdx = parseInt(cenaAtivaPropriedades.split('_')[1]);
                     window.atualizarPainelMusica(currentPanelIdx);
                 }
-                callback(item); return;
+                return;
             } else {
                 let itemStartSec = dateToSeg(item.start);
                 let itemEndSec = dateToSeg(item.end);
@@ -1821,21 +1828,48 @@ if (!document.getElementById('fileUploadTimeline')) {
     document.body.appendChild(input);
 }
 
-function alternarQuadranteMini(num, idx) {
+window.alternarQuadranteMini = function(num, idx) {
     let cena = projetoAtual.cenas[idx];
     let index = cena.quadros_foco.indexOf(num);
-    if (index > -1) { cena.quadros_foco.splice(index, 1); } 
-    else {
+    
+    if (index > -1) { 
+        cena.quadros_foco.splice(index, 1); 
+    } else {
         if (cena.quadros_foco.length >= 3) { alert("Máximo de 3 pontos focais."); return; }
         cena.quadros_foco.push(num);
     }
+    
     if (cena.quadros_foco.length === 0) cena.quadros_foco = [5];
     cena.quadros_foco.sort((a,b) => a-b);
     cena.foco_manual = true; 
-    atualizarPainel(idx);
+    
+    // 1. Atualiza visualmente o DOM sem recarregar o painel inteiro
+    for(let i = 1; i <= 9; i++) {
+        let celula = document.getElementById(`mini_quadrante_${i}`);
+        if (celula) {
+            let isSel = cena.quadros_foco.includes(i);
+            let bg = isSel ? 'rgba(0, 210, 255, 0.4)' : 'transparent';
+            let border = isSel ? '1px solid var(--primary-cyan)' : '1px solid rgba(255,255,255,0.1)';
+            let color = isSel ? '#fff' : 'rgba(255,255,255,0.3)';
+            let textShadow = isSel ? '0 2px 4px rgba(0,0,0,0.8)' : 'none';
+            
+            celula.style.background = bg;
+            celula.style.border = border;
+            celula.style.color = color;
+            celula.style.textShadow = textShadow;
+            
+            // Garante que o hover retorne para a cor certa ao tirar o mouse
+            celula.setAttribute('onmouseout', `this.style.backgroundColor='${bg}'`);
+        }
+    }
+    
+    // 2. Remove o aviso "(IA)" do título suavemente
+    let label = document.getElementById('label_foco_manual');
+    if (label) label.innerHTML = '<i class="ph ph-crosshair"></i> Ponto Focal:';
+
     pushHistory();
     renderCanvas(AudioEngine.obterTempoAtual());
-}
+};
 
 async function acionarIAFocal() { if (itemClicadoMenu === null) return; const idCena = itemClicadoMenu; const nomeOriginal = itemsDataset.get(idCena).content; const conteudoCarregando = `<div class="spinner-carregando"></div><span style="display:inline-block; vertical-align:middle; font-size:10px;">Analisando...</span>`; itemsDataset.update({ id: idCena, className: 'item-carregando-ia', content: conteudoCarregando }); try { const resposta = await fetch('/api/detectar_foco_ia', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cena_id: idCena }) }); const dados = await resposta.json(); if(dados.status === "ok") { projetoAtual.cenas[idCena].quadros_foco = dados.novo_foco; projetoAtual.cenas[idCena].foco_manual = false; atualizarPainel(idCena); pushHistory(); renderCanvas(AudioEngine.obterTempoAtual()); } } catch (e) {} finally { itemsDataset.update({ id: idCena, className: '', content: nomeOriginal }); } }
 function abrirModalFoco() { if (itemClicadoMenu === null) return; document.getElementById('menuContexto').style.display = 'none'; const idCena = itemClicadoMenu; const cena = projetoAtual.cenas[idCena]; quadrantesSelecionados = [...cena.quadros_foco]; document.getElementById('imgFocoManual').src = cena.arquivo_origem ? `/proxy/preview/midia/${encodeURIComponent(cena.arquivo_origem)}` : `/proxy/preview/cena/${idCena}`; const overlay = document.getElementById('gridOverlay'); overlay.innerHTML = ''; for(let i = 1; i <= 9; i++) { const cell = document.createElement('div'); cell.className = 'grid-cell'; if (quadrantesSelecionados.includes(i)) cell.classList.add('selecionado'); cell.innerText = i; cell.onclick = () => alternarQuadrante(i, cell); overlay.appendChild(cell); } document.getElementById('modalFoco').style.display = 'flex'; }
@@ -2168,12 +2202,13 @@ function atualizarPainel(idx) {
         let border = isSel ? '1px solid var(--primary-cyan)' : '1px solid rgba(255,255,255,0.1)';
         let color = isSel ? '#fff' : 'rgba(255,255,255,0.3)';
         let textShadow = isSel ? '0 2px 4px rgba(0,0,0,0.8)' : 'none';
-        miniGridHTML += `<div style="display: flex; align-items: center; justify-content: center; font-size: 14px; background: ${bg}; border: ${border}; color: ${color}; text-shadow: ${textShadow}; box-sizing: border-box; cursor: pointer; transition: 0.1s;" onclick="alternarQuadranteMini(${i}, ${idx})" onmouseover="this.style.backgroundColor='rgba(0, 210, 255, 0.2)'" onmouseout="this.style.backgroundColor='${bg}'">${i}</div>`;
+        // >>> ADICIONADO O ID "mini_quadrante_${i}" AQUI <<<
+        miniGridHTML += `<div id="mini_quadrante_${i}" style="display: flex; align-items: center; justify-content: center; font-size: 14px; background: ${bg}; border: ${border}; color: ${color}; text-shadow: ${textShadow}; box-sizing: border-box; cursor: pointer; transition: 0.1s;" onclick="alternarQuadranteMini(${i}, ${idx})" onmouseover="this.style.backgroundColor='rgba(0, 210, 255, 0.2)'" onmouseout="this.style.backgroundColor='${bg}'">${i}</div>`;
     }
     miniGridHTML += `</div></div></div>`;
 
     html += `<div class="info-box" style="text-align: center; background: transparent; border:none; padding: 0;">
-        <label style="justify-content: center;"><i class="ph ph-crosshair"></i> Ponto Focal${isManual}:</label>
+        <label id="label_foco_manual" style="justify-content: center;"><i class="ph ph-crosshair"></i> Ponto Focal${isManual}:</label>
         ${miniGridHTML}
         <button class="btn-outline" style="margin-top:5px; font-size:0.8em; padding: 6px;" onclick="itemClicadoMenu=${idx}; abrirModalFoco()">Abrir grade maior</button>
     </div>`;
