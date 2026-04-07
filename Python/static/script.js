@@ -19,6 +19,32 @@ let previewStartTime = 0;
 let previewSfxNode = null;
 let isPreviewing = false;
 
+// --- MOTOR DE CLUSTERING VISUAL ---
+let clusterRaf = null;
+window.atualizarAgrupamentoVisual = function() {
+    if (clusterRaf) cancelAnimationFrame(clusterRaf);
+    
+    // Roda no próximo frame livre da placa de vídeo para não engasgar o zoom
+    clusterRaf = requestAnimationFrame(() => {
+        const items = document.querySelectorAll('.vis-item:not(.vis-custom-time)');
+        
+        for (let i = 0; i < items.length; i++) {
+            const el = items[i];
+            const wStr = el.style.width; 
+            
+            // Lemos a string 'px' direto da memória, sem forçar o navegador a recalcular o layout
+            if (wStr) {
+                const w = parseFloat(wStr);
+                if (w <= 11) {
+                    if (!el.classList.contains('is-tiny')) el.classList.add('is-tiny');
+                } else {
+                    if (el.classList.contains('is-tiny')) el.classList.remove('is-tiny');
+                }
+            }
+        }
+    });
+};
+
 // --- MOTOR DE DESEMPENHO ADAPTATIVO ---
 window.ConfigPreview = {
     escala: 1.0,        // 1.0 = Original, 0.5 = Metade (Mais rápido), 0.25 = Batata Mode
@@ -487,7 +513,7 @@ window.desenharWaveform = function() {
     const ctx = canvas.getContext('2d');
     
     const duracao = AudioEngine.masterBuffer.duration;
-    canvas.width = Math.max(1000, Math.ceil(duracao * 100));
+    canvas.width = Math.min(8000, Math.max(1000, Math.ceil(duracao * 50)));
     canvas.height = 100;
     
     const width = canvas.width;
@@ -530,8 +556,8 @@ window.desenharWaveformsMusicas = function() {
         
         const ctx = canvas.getContext('2d');
         const duracaoClipe = faixa.fim - faixa.inicio;
-        
-        canvas.width = Math.max(500, Math.ceil(duracaoClipe * 100)); 
+            
+        canvas.width = Math.min(8000, Math.max(500, Math.ceil(duracaoClipe * 50)));
         canvas.height = 100;
         
         const width = canvas.width;
@@ -1111,7 +1137,11 @@ async function inicializar() {
         } 
     };
 
-    timeline = new vis.Timeline(container, itemsDataset, groupsDataset, options); 
+    timeline = new vis.Timeline(container, itemsDataset, groupsDataset, options);
+// Dispara a otimização de blocos sempre que o zoom ou os dados mudarem
+    timeline.on('rangechange', window.atualizarAgrupamentoVisual);
+    timeline.on('rangechanged', window.atualizarAgrupamentoVisual);
+    timeline.on('changed', window.atualizarAgrupamentoVisual); 
     timeline.addCustomTime(segToDate(0), 'agulha');
 
     let bloquearCliqueFantasma = false;
