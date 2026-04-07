@@ -810,3 +810,47 @@ button:disabled {
 
 .ph-spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ========================================== */
+/* CLUSTERING VISUAL (OTIMIZAÇÃO DE ZOOM EXTREMO) */
+/* ========================================== */
+.vis-item.is-tiny {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    min-width: 2px !important; 
+    transition: none !important; /* Desliga animações para máxima fluidez */
+}
+
+/* 1. Mídias de Vídeo/Imagem: Cor sólida e sangria */
+.vis-item.vis-range.is-tiny {
+    background: #275680 !important; 
+    /* A MÁGICA: O outline expande a cor em 1px, invadindo o espaço do vizinho e soldando os blocos */
+    outline: 1px solid #275680 !important; 
+    z-index: 1;
+}
+
+/* 2. Músicas (Roxo): Cor sólida e sangria */
+.vis-item.music-clip.is-tiny {
+    background: #6d28d9 !important;
+    outline: 1px solid #6d28d9 !important;
+}
+
+/* 3. Locução (Verde): Cor sólida e sangria */
+.vis-item.audio-clip.is-tiny {
+    background: #059669 !important;
+    outline: 1px solid #059669 !important;
+}
+
+/* Esconde imagens, textos e canvas internos */
+.vis-item.is-tiny .vis-item-content {
+    display: none !important; 
+}
+
+/* Destaque ao clicar em um bloco aglomerado */
+.vis-item.is-tiny.vis-selected {
+    background: #00d2ff !important;
+    outline: 1px solid #00d2ff !important;
+    z-index: 10 !important;
+}
