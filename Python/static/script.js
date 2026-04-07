@@ -2928,9 +2928,9 @@ window.mostrarVideoPronto = function(url) {
     document.getElementById('btnDownloadFinal').href = url;
 };
 
-window.ConfigPreview = window.ConfigPreview || { escala: 1.0, fpsLimit: 0, noTransitions: false };
+// O padrão de inicialização agora é 480p (0.44)
+window.ConfigPreview = window.ConfigPreview || { escala: 0.44, fpsLimit: 0, noTransitions: false };
 
-// Adicionamos "btnElement" para o JavaScript saber exatamente quem ele deve pintar de azul
 window.mudarQualidadePreview = function(btnElement, escala, fps, noTransitions) {
     window.ConfigPreview.escala = escala;
     window.ConfigPreview.fpsLimit = fps;
@@ -2946,13 +2946,12 @@ window.mudarQualidadePreview = function(btnElement, escala, fps, noTransitions) 
     let baseW = isVertical ? 1080 : 1920;
     let baseH = isVertical ? 1920 : 1080;
 
-    // 3. DOWNSCALING INTERNO DO CANVAS
+    // 3. DOWNSCALING INTERNO DO CANVAS (WebGL)
     mainCanvas.width = baseW * escala; 
     mainCanvas.height = baseH * escala; 
     offCanvasA.width = mainCanvas.width; offCanvasA.height = mainCanvas.height; 
     offCanvasB.width = mainCanvas.width; offCanvasB.height = mainCanvas.height;
     
-    // Alerta o OpenGL que a "janela" diminuiu
     if(typeof WebGLRenderer !== 'undefined' && WebGLRenderer.gl) {
         WebGLRenderer.gl.viewport(0, 0, mainCanvas.width, mainCanvas.height);
     }
@@ -2965,14 +2964,13 @@ window.mudarQualidadePreview = function(btnElement, escala, fps, noTransitions) 
         b.style.color = 'var(--text-muted)';
     });
     
-    // O erro estava aqui. Agora aplicamos a cor corretamente usando a variável recebida
     if (btnElement) {
         btnElement.style.borderColor = 'var(--primary-cyan)';
         btnElement.style.color = 'var(--primary-cyan)';
     }
 };
 
-// Injetar o botão de Configuração no HTML Dinamicamente (Agora com o "this" no onclick e 480p)
+// Injetar o botão de Configuração no HTML Dinamicamente (Com as novas resoluções)
 setTimeout(() => {
     const controlsCenter = document.querySelector('.player-controls-center');
     if(controlsCenter && !document.getElementById('menuDesempenho')) {
@@ -2984,16 +2982,16 @@ setTimeout(() => {
                 <div class="select-items context-menu" id="menuDesempenho" style="bottom: 120%; top: auto; right: 0; left: auto; width: 200px; padding: 10px;" onclick="event.stopPropagation();">
                     <p style="margin: 0 0 10px 0; font-size: 0.8em; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Qualidade de Reprodução</p>
                     
-                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 1.0, 0, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid var(--primary-cyan); color: var(--primary-cyan); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
-                        <i class="ph-fill ph-monitor-play"></i> Máxima (1080p, Fluido)
+                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.44, 0, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid var(--primary-cyan); color: var(--primary-cyan); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
+                        <i class="ph-fill ph-monitor-play"></i> Máxima (480p, Fluido)
                     </button>
                     
-                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.44, 30, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
-                        <i class="ph ph-rocket"></i> Equilibrada (480p, 30fps)
+                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.33, 30, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
+                        <i class="ph ph-rocket"></i> Equilibrada (360p, 30fps)
                     </button>
                     
-                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.25, 15, true); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.85em;">
-                        <i class="ph ph-warning-circle"></i> PC Fraco (270p, Sem Efeitos)
+                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.22, 15, true); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.85em;">
+                        <i class="ph ph-warning-circle"></i> PC Fraco (240p, Sem Efeitos)
                     </button>
                 </div>
             </div>
