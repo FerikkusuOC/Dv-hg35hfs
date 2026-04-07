@@ -434,34 +434,40 @@ def renderizar_motor_avancado(projeto, arquivo_saida, fps_render, res_render, ta
     pasta_audio_transicoes = os.path.join("efeitos_sonoros", "transicoes")
     
     for i in range(len(timeline_planificada) - 1):
-        cenaA = timeline_planificada[i]; cenaB = timeline_planificada[i+1]
-        if cenaA.get('is_black') or cenaB.get('is_black'): continue
+        cenaA = timeline_planificada[i]
+        cenaB = timeline_planificada[i+1]
+        
+        if cenaA.get('is_black') or cenaB.get('is_black'): 
+            continue
         
         rawA = cenas_brutas[cenaA['id']]
         transName = get_transicao(rawA, rawA['id'])
         
         if transName != 'nenhuma':
-            audio_name = transName
-            for d in ['_direita', '_esquerda', '_cima', '_baixo']: audio_name = audio_name.replace(d, '')
-            if 'limpeza' in audio_name: audio_name = 'limpeza_rapida_x'
+            dados_transicao = COLECAO_TRANSICOES.get(transName, {})
+            arquivo_audio_sfx = dados_transicao.get('audio')
             
-            caminho_sfx = os.path.join(pasta_audio_transicoes, audio_name + '.mp3')
-            duracao_visual = min(1.0, (cenaA['fim'] - cenaA['inicio']) * 0.5, (cenaB['fim'] - cenaB['inicio']) * 0.5) 
-            
-            if duracao_visual > 0.1 and os.path.exists(caminho_sfx):
-                try:
-                    trans_vol = rawA.get('transition_volume', 1.0)
-                    mult_v = float(vols_camadas.get(rawA.get('camada', 'v1'), 1.0))
-                    
-                    clip_sfx = AudioFileClip(caminho_sfx).fx(afx.audio_fadeout, 0.3)
-                    p_sfx = clip_sfx.max_volume()
-                    if p_sfx == 0: p_sfx = 1.0
-                    fator = (1.0 / p_sfx) * (pico_narra * 0.20) * trans_vol * mult_v
-                    audios_sfx.append(clip_sfx.fx(afx.volumex, fator).set_start(cenaA['fim'] - duracao_visual))
-                except: pass
+            if arquivo_audio_sfx:
+                caminho_sfx = os.path.join(pasta_audio_transicoes, arquivo_audio_sfx)
+                duracao_visual = min(1.0, (cenaA['fim'] - cenaA['inicio']) * 0.5, (cenaB['fim'] - cenaB['inicio']) * 0.5) 
+                
+                if duracao_visual > 0.1 and os.path.exists(caminho_sfx):
+                    try:
+                        trans_vol = rawA.get('transition_volume', 1.0)
+                        mult_v = float(vols_camadas.get(rawA.get('camada', 'v1'), 1.0))
+                        
+                        clip_sfx = AudioFileClip(caminho_sfx).fx(afx.audio_fadeout, 0.3)
+                        p_sfx = clip_sfx.max_volume()
+                        if p_sfx == 0: 
+                            p_sfx = 1.0
+                            
+                        fator = (1.0 / p_sfx) * (pico_narra * 0.20) * trans_vol * mult_v
+                        audios_sfx.append(clip_sfx.fx(afx.volumex, fator).set_start(cenaA['fim'] - duracao_visual))
+                    except:
+                        pass
 
     # ==========================================
-    # PROCESSAMENTO DAS FAIXAS MUSICAIS (DAW MULTITRACK)
+    # PROCESSAMENTO DAS FAIXAS MUSICAIS
     # ==========================================
     faixas_musicais = projeto.get('faixas_musicais', [])
     audios_bgm = []
@@ -545,10 +551,9 @@ def renderizar_motor_avancado(projeto, arquivo_saida, fps_render, res_render, ta
     total_frames = int(duracao_total * fps_render) 
     dict_status[task_id]['total_frames'] = total_frames
     
-    # --- CRIAÇÃO DO CONTEXTO OPENGL (BLINDADO) ---
+    # --- CRIAÇÃO DO CONTEXTO OPENGL (GPU) ---
     try:
         if SISTEMA == "Linux":
-            # Força o backend EGL para rodar sem servidor X (Monitor) no Colab
             ctx = moderngl.create_standalone_context(require=330, backend='egl')
         else:
             ctx = moderngl.create_standalone_context()
@@ -558,14 +563,22 @@ def renderizar_motor_avancado(projeto, arquivo_saida, fps_render, res_render, ta
         
     animador_gpu = GPUImageAnimator(ctx, res_render)
 
+    # ==========================================
+    # OTIMIZAÇÃO EXTREMA DO FFMPEG
+    # ==========================================
+    # Se o NVENC não estiver disponível, usamos o preset ultrafast e liberamos 
+    # todos os núcleos do processador (threads=0) para a codificação ocorrer em tempo real.
+    preset_codec = 'fast' if CODEC_VIDEO == "h264_nvenc" else 'ultrafast'
+    
     comando_ffmpeg = [
         CAMINHO_FFMPEG, '-y', '-hide_banner', '-loglevel', 'error',
         '-f', 'rawvideo', '-vcodec', 'rawvideo', '-s', f'{res_render[0]}x{res_render[1]}', '-pix_fmt', 'rgb24', '-r', str(fps_render),
         '-i', '-', '-i', audio_path, '-map', '0:v', '-map', '1:a',
-        '-c:v', CODEC_VIDEO, '-preset', 'fast', '-b:v', '15M',
+        '-c:v', CODEC_VIDEO, '-preset', preset_codec, '-threads', '0', '-b:v', '15M',
         '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
         '-shortest', arquivo_saida
     ]
+    
     processo = subprocess.Popen(comando_ffmpeg, stdin=subprocess.PIPE)
     
     tempo_inicio = time.time()
@@ -641,7 +654,12 @@ def renderizar_motor_avancado(projeto, arquivo_saida, fps_render, res_render, ta
             if not inTransition:
                 frame_render = bg_A.get_frame(prog_A, t_local_A)
                 
-        processo.stdin.write(frame_render.tobytes())
+        # --- TRAVA DE SEGURANÇA NO PIPELINE ---
+        try:
+            processo.stdin.write(frame_render.tobytes())
+        except BrokenPipeError:
+            print(f"\n[ERRO CRÍTICO] O FFmpeg crashou inesperadamente! Verifique se o codec de vídeo ({CODEC_VIDEO}) é suportado pelo seu ambiente.")
+            break
         
         if f % 5 == 0 or f == total_frames - 1:
             decorrido = time.time() - tempo_inicio
@@ -651,8 +669,10 @@ def renderizar_motor_avancado(projeto, arquivo_saida, fps_render, res_render, ta
             dict_status[task_id]['progresso'] = porcentagem
             dict_status[task_id]['fps'] = round(fps_atual, 1)
 
-    processo.stdin.close()
-    processo.wait()
+    try:
+        processo.stdin.close()
+        processo.wait()
+    except: pass
     
     # Libera os blocos da VRAM para a próxima renderização
     ctx.release()
