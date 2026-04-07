@@ -1961,6 +1961,20 @@ function changeCustomSelect(idx, atributo, valor, label, iconeHtml, menuId, head
     pararPreviewEfeito(); 
 }
 
+window.atualizarAtributoCena = function(idx, atributo, valor) {
+    if (!projetoAtual || !projetoAtual.cenas[idx]) return;
+    
+    // Salva a nova escolha na memória da cena
+    projetoAtual.cenas[idx][atributo] = valor;
+    
+    // Sincroniza a timeline, salva o histórico (Ctrl+Z) e aciona o Auto-Save
+    sincronizarJSON();
+    pushHistory();
+    
+    // Força o player a redesenhar a tela imediatamente para mostrar a nova transição/movimento
+    renderCanvas(AudioEngine.obterTempoAtual());
+};
+
 function iniciarPreviewEfeito(tipo, valor, idxCena) {
     if(isPlaying) togglePlay(); 
     if(isPreviewing) pararPreviewEfeito(); 
