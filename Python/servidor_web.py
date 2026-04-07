@@ -179,8 +179,14 @@ def obter_dados(): return jsonify(PROJETO_ATUAL)
 def salvar_estado():
     dados = request.json
     global PROJETO_ATUAL
-    PROJETO_ATUAL['cenas'] = dados.get('cenas', PROJETO_ATUAL['cenas'])
+    PROJETO_ATUAL['cenas'] = dados.get('cenas', PROJETO_ATUAL.get('cenas', []))
     PROJETO_ATUAL['faixas_musicais'] = dados.get('faixas_musicais', PROJETO_ATUAL.get('faixas_musicais', []))
+    
+    # A MÁGICA: Agora o Python salva os volumes e a duração também!
+    if 'volumes_camadas' in dados: PROJETO_ATUAL['volumes_camadas'] = dados['volumes_camadas']
+    if 'volume_locucao' in dados: PROJETO_ATUAL['volume_locucao'] = dados['volume_locucao']
+    if 'duracao' in dados: PROJETO_ATUAL['duracao'] = dados['duracao']
+    
     with open('estado_projeto.json', 'w', encoding='utf-8') as f: json.dump(PROJETO_ATUAL, f, indent=4, ensure_ascii=False)
     return jsonify({"status": "salvo"})
 
@@ -362,8 +368,17 @@ def checar_status_upscale(task_id):
 def iniciar_render():
     global PROJETO_ATUAL
     dados = request.json
-    PROJETO_ATUAL['cenas'] = dados.get('projeto', {}).get('cenas', PROJETO_ATUAL['cenas'])
-    PROJETO_ATUAL['faixas_musicais'] = dados.get('projeto', {}).get('faixas_musicais', PROJETO_ATUAL.get('faixas_musicais', []))
+    projeto_req = dados.get('projeto', {})
+    
+    PROJETO_ATUAL['cenas'] = projeto_req.get('cenas', PROJETO_ATUAL.get('cenas', []))
+    PROJETO_ATUAL['faixas_musicais'] = projeto_req.get('faixas_musicais', PROJETO_ATUAL.get('faixas_musicais', []))
+    
+    # Garantindo que o motor de renderização receba os volumes atualizados
+    if 'volumes_camadas' in projeto_req: PROJETO_ATUAL['volumes_camadas'] = projeto_req['volumes_camadas']
+    if 'volume_locucao' in projeto_req: PROJETO_ATUAL['volume_locucao'] = projeto_req['volume_locucao']
+    if 'duracao' in projeto_req: PROJETO_ATUAL['duracao'] = projeto_req['duracao']
+    
+    fps_escolhido = int(dados.get('fps', 30))
     
     fps_escolhido = int(dados.get('fps', 30))
     resolucao_escolhida = dados.get('resolucao', RESOLUCAO)
