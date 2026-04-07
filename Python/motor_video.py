@@ -229,7 +229,7 @@ def get_animacao(cena, idx):
     if cena.get('animacao') and cena.get('animacao') != 'auto': return cena['animacao']
     quadros = cena.get('quadros_foco', [5])
     if len(quadros) >= 5: return 'nenhuma'
-    anims = ['zoom_in', 'zoom_out', 'pan']
+    anims = ['zoom_in', 'zoom_out', 'pan_direita', 'pan_esquerda', 'pan_cima', 'pan_baixo']
     return anims[idx % len(anims)]
 
 def get_transicao(cena, idx):
@@ -319,42 +319,73 @@ class FundoGPU:
             
         quadros_foco = cena_raw.get('quadros_foco', [5])
         cx_total, cy_total = 0, 0
+        min_u, max_u, min_v, max_v = 1.0, 0.0, 1.0, 0.0
+        
         for q in quadros_foco:
             if not isinstance(q, int) or q < 1 or q > 9: q = 5
             row, col = (q - 1) // 3, (q - 1) % 3
-            cx_total += (col * (1/3)) + (1/6); cy_total += (row * (1/3)) + (1/6)
+            pu = col * 0.5; pv = row * 0.5
+            cx_total += pu; cy_total += pv
             
-        raw_focus_u = cx_total / len(quadros_foco); raw_focus_v = cy_total / len(quadros_foco)
-        
-        screen_aspect = self.res_render[0] / self.res_render[1]
-        
-        if img_aspect > screen_aspect: self.uv_scale = (screen_aspect / img_aspect, 1.0)
-        else: self.uv_scale = (1.0, img_aspect / screen_aspect)
-
-        margem_u = self.uv_scale[0] / 2.0; margem_v = self.uv_scale[1] / 2.0
-        safe_focus_u = max(margem_u, min(1.0 - margem_u, raw_focus_u)); safe_focus_v = max(margem_v, min(1.0 - margem_v, raw_focus_v))
-        self.focus_uv = (safe_focus_u, safe_focus_v)
+            if pu < min_u: min_u = pu
+            if pu > max_u: max_u = pu
+            if pv < min_v: min_v = pv
+            if pv > max_v: max_v = pv
+            
+        # Padrão: Média (Centro de Massa) para Zooms
+        raw_focus_u = cx_total / len(quadros_foco)
+        raw_focus_v = cy_total / len(quadros_foco)
         
         self.modo = get_animacao(cena_raw, cena_raw.get('id', 0))
+        
+        # Inteligência: O Pan persegue o ponto extremo selecionado
+        if self.modo == 'pan_direita': raw_focus_u = max_u
+        elif self.modo == 'pan_esquerda': raw_focus_u = min_u
+        elif self.modo == 'pan_cima': raw_focus_v = min_v
+        elif self.modo == 'pan_baixo': raw_focus_v = max_v
+        
+        screen_aspect = self.res_render[0] / self.res_render[1]
+        is_fit = cena_raw.get('imagem_completa', False)
+        
+        # Inversão de eixos inteligente para o modo Contain vs Cover
+        if is_fit:
+            if img_aspect > screen_aspect: self.uv_scale = (1.0, img_aspect / screen_aspect)
+            else: self.uv_scale = (screen_aspect / img_aspect, 1.0)
+        else:
+            if img_aspect > screen_aspect: self.uv_scale = (screen_aspect / img_aspect, 1.0)
+            else: self.uv_scale = (1.0, img_aspect / screen_aspect)
+
         zoom_padrao = cena_raw.get('zoom_intensity', 0.15)
         
         if self.modo == "nenhuma":
-            self.start_scale = 1.0; self.end_scale = 1.0; self.start_focus = self.focus_uv; self.end_focus = self.focus_uv
+            self.start_scale = 1.0; self.end_scale = 1.0; self.start_focus = (raw_focus_u, raw_focus_v); self.end_focus = (raw_focus_u, raw_focus_v)
         elif self.modo == "zoom_in":
-            self.start_scale = 1.0; self.end_scale = 1.0 + zoom_padrao; self.start_focus = self.focus_uv; self.end_focus = self.focus_uv
+            self.start_scale = 1.0; self.end_scale = 1.0 + zoom_padrao; self.start_focus = (raw_focus_u, raw_focus_v); self.end_focus = (raw_focus_u, raw_focus_v)
         elif self.modo == "zoom_out":
-            self.start_scale = 1.0 + zoom_padrao; self.end_scale = 1.0; self.start_focus = self.focus_uv; self.end_focus = self.focus_uv
-        else: 
+            self.start_scale = 1.0 + zoom_padrao; self.end_scale = 1.0; self.start_focus = (raw_focus_u, raw_focus_v); self.end_focus = (raw_focus_u, raw_focus_v)
+        elif self.modo.startswith("pan_"):
             self.start_scale = 1.15; self.end_scale = 1.15
-            offset = 0.05
-            if img_aspect > screen_aspect:
-                sx = max(margem_u, min(1.0 - margem_u, self.focus_uv[0] - offset)); ex = max(margem_u, min(1.0 - margem_u, self.focus_uv[0] + offset))
-                if (cena_raw.get('id', 0) % 2) == 0: sx, ex = ex, sx
-                self.start_focus = (sx, self.focus_uv[1]); self.end_focus = (ex, self.focus_uv[1])
+            
+            margem_u_scaled = (self.uv_scale[0] / 1.15) / 2.0
+            margem_v_scaled = (self.uv_scale[1] / 1.15) / 2.0
+            
+            # Se a margem for maior que 0.5, a imagem é menor que a tela. A câmera estaciona no centro exato para evitar bugs.
+            if margem_u_scaled >= 0.5: eu = 0.5; su = 0.5
             else:
-                sy = max(margem_v, min(1.0 - margem_v, self.focus_uv[1] - offset)); ey = max(margem_v, min(1.0 - margem_v, self.focus_uv[1] + offset))
-                if (cena_raw.get('id', 0) % 2) == 0: sy, ey = ey, sy
-                self.start_focus = (self.focus_uv[0], sy); self.end_focus = (self.focus_uv[0], ey)
+                eu = max(margem_u_scaled, min(1.0 - margem_u_scaled, raw_focus_u))
+                if self.modo == "pan_direita": su = margem_u_scaled
+                elif self.modo == "pan_esquerda": su = 1.0 - margem_u_scaled
+                else: su = eu
+                
+            if margem_v_scaled >= 0.5: ev = 0.5; sv = 0.5
+            else:
+                ev = max(margem_v_scaled, min(1.0 - margem_v_scaled, raw_focus_v))
+                if self.modo == "pan_baixo": sv = margem_v_scaled
+                elif self.modo == "pan_cima": sv = 1.0 - margem_v_scaled
+                else: sv = ev
+                
+            self.start_focus = (su, sv)
+            self.end_focus = (eu, ev)
 
     def get_frame(self, progresso, t_local=0.0):
         if self.is_black_scene:
@@ -391,8 +422,16 @@ class FundoGPU:
             p_eased = p_norm
 
         escala = self.start_scale + (self.end_scale - self.start_scale) * p_eased
-        cur_u = self.start_focus[0] + (self.end_focus[0] - self.start_focus[0]) * p_eased
-        cur_v = self.start_focus[1] + (self.end_focus[1] - self.start_focus[1]) * p_eased
+        raw_u = self.start_focus[0] + (self.end_focus[0] - self.start_focus[0]) * p_eased
+        raw_v = self.start_focus[1] + (self.end_focus[1] - self.start_focus[1]) * p_eased
+        
+        # CLAMPING DINÂMICO: A câmera nunca mostra o fundo preto, não importa a escala
+        cur_margem_u = (self.uv_scale[0] / escala) / 2.0
+        cur_margem_v = (self.uv_scale[1] / escala) / 2.0
+        
+        # Proteção dinâmica: Se existir bordas pretas massivas, a câmera centraliza naquele eixo
+        cur_u = 0.5 if cur_margem_u >= 0.5 else max(cur_margem_u, min(1.0 - cur_margem_u, raw_u))
+        cur_v = 0.5 if cur_margem_v >= 0.5 else max(cur_margem_v, min(1.0 - cur_margem_v, raw_v))
         
         self.tex.use(0)
         self.animador_gpu.fbo.use(); self.animador_gpu.prog['is_black'].value = False; self.animador_gpu.prog['tex_image'].value = 0
