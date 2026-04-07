@@ -433,17 +433,21 @@ const AudioEngine = {
     },
     tocar() {
         if (this.ctx.state === 'suspended') this.ctx.resume();
-        this.pararTudo(); this.startTime = this.ctx.currentTime - this.pauseTime;
+        this.pararTudo(); 
+        this.startTime = this.ctx.currentTime;
         this.bgmGains = {}; this.sfxGains = []; 
+        
+        let speed = window.playbackSpeed || 1.0;
         
         if (this.masterBuffer) { 
             let source = this.ctx.createBufferSource(); 
             source.buffer = this.masterBuffer; 
+            source.playbackRate.value = speed; // <-- APLICA VELOCIDADE NA LOCUÇÃO
             let multA1 = (projetoAtual.volumes_camadas && projetoAtual.volumes_camadas['a1'] !== undefined) ? projetoAtual.volumes_camadas['a1'] : 1.0;
             let gainVol = projetoAtual.volume_locucao !== undefined ? projetoAtual.volume_locucao : 1.0;
             this.masterGain.gain.value = gainVol * multA1;
             source.connect(this.masterGain); 
-            source.start(0, this.pauseTime); 
+            source.start(0, Math.max(0, this.pauseTime)); 
             this.sources.push(source); 
         }
 
@@ -455,23 +459,23 @@ const AudioEngine = {
                     let source = this.ctx.createBufferSource();
                     source.buffer = this.bgmBuffers[i];
                     source.loop = true; 
+                    source.playbackRate.value = speed; // <-- APLICA VELOCIDADE NA MÚSICA
                     
                     let gainNode = this.ctx.createGain();
                     let multA2 = (projetoAtual.volumes_camadas && projetoAtual.volumes_camadas['a2'] !== undefined) ? projetoAtual.volumes_camadas['a2'] : 1.0;
                     let vol = faixa.volume !== undefined ? faixa.volume : 0.15;
                     gainNode.gain.value = vol * multA2; 
-                    
                     this.bgmGains[i] = gainNode; 
                     
                     source.connect(gainNode);
                     gainNode.connect(this.ctx.destination);
                     
                     let offsetNoArquivo = Math.max(0, this.pauseTime - faixa.inicio);
-                    let tempoDeDisparo = this.ctx.currentTime + Math.max(0, faixa.inicio - this.pauseTime);
+                    let tempoDeDisparo = this.ctx.currentTime + Math.max(0, faixa.inicio - this.pauseTime) / speed;
                     
                     source.start(tempoDeDisparo, offsetNoArquivo);
                     let duracaoFaltante = faixa.fim - Math.max(faixa.inicio, this.pauseTime);
-                    source.stop(tempoDeDisparo + duracaoFaltante);
+                    source.stop(tempoDeDisparo + (duracaoFaltante / speed));
                     this.sources.push(source);
                 }
             });
@@ -483,28 +487,43 @@ const AudioEngine = {
             let rawA = projetoAtual.cenas[cenaFlat.id]; let transName = getTransicao(rawA, rawA.id);
             let audioKey = Object.keys(this.mapaSFX).find(k => transName.includes(k.replace('_direita','').replace('_esquerda','').replace('_cima','').replace('_baixo','')));
             if (!audioKey) audioKey = transName;
+            
             if (transName !== 'nenhuma' && this.sfxBuffers[audioKey]) {
                 let durTrans = Math.min(1.0, (cenaFlat.fim - cenaFlat.inicio) * 0.5, (proximaCenaFlat.fim - proximaCenaFlat.inicio) * 0.5);
                 let sfxStartTime = cenaFlat.fim - durTrans;
                 if (sfxStartTime >= this.pauseTime) {
                     let source = this.ctx.createBufferSource(); source.buffer = this.sfxBuffers[audioKey];
+                    source.playbackRate.value = speed; // <-- APLICA VELOCIDADE NOS EFEITOS SONOROS
                     
-                    // Lê o volume da transição e cruza com o volume Master da Camada de Vídeo
                     let multV = (projetoAtual.volumes_camadas && projetoAtual.volumes_camadas[rawA.camada] !== undefined) ? projetoAtual.volumes_camadas[rawA.camada] : 1.0;
                     let transVol = rawA.transition_volume !== undefined ? rawA.transition_volume : 1.0;
                     
                     let gainNode = this.ctx.createGain(); gainNode.gain.value = 0.20 * transVol * multV; 
                     source.connect(gainNode); gainNode.connect(this.ctx.destination);
-                    source.start(this.ctx.currentTime + (sfxStartTime - this.pauseTime)); this.sources.push(source);
+                    source.start(this.ctx.currentTime + ((sfxStartTime - this.pauseTime) / speed)); 
+                    this.sources.push(source);
                     this.sfxGains.push({ layer: rawA.camada, node: gainNode, baseVol: 0.20 * transVol });
                 }
             }
         });
     },
-    pausar() { this.pauseTime = this.ctx.currentTime - this.startTime; this.pararTudo(); },
-    buscar(tempo) { this.pauseTime = tempo; if (isPlaying) this.tocar(); },
+    pausar() { 
+        let speed = window.playbackSpeed || 1.0;
+        this.pauseTime += (this.ctx.currentTime - this.startTime) * speed; // Sincroniza posição usando velocidade
+        this.pararTudo(); 
+    },
+    buscar(tempo) { 
+        this.pauseTime = tempo; 
+        if (isPlaying) {
+            this.pararTudo();
+            this.tocar(); // Reinicia com nova âncora
+        }
+    },
     pararTudo() { this.sources.forEach(s => { try { s.stop(); } catch(e){} }); this.sources = []; },
-    obterTempoAtual() { return isPlaying ? (this.ctx.currentTime - this.startTime) : this.pauseTime; }
+    obterTempoAtual() { 
+        let speed = window.playbackSpeed || 1.0;
+        return isPlaying ? this.pauseTime + (this.ctx.currentTime - this.startTime) * speed : this.pauseTime; 
+    }
 };
 
 window.desenharWaveform = function() {
@@ -1373,6 +1392,9 @@ function renderizarCenaBase(ctxAlvo, canvasRef, cenaRaw, img, t_local, duracao_c
         let baseVol = cenaRaw.volume_video !== undefined ? cenaRaw.volume_video : 1.0;
         let multV = (projetoAtual.volumes_camadas && projetoAtual.volumes_camadas[cenaRaw.camada] !== undefined) ? projetoAtual.volumes_camadas[cenaRaw.camada] : 1.0;
         img.volume = Math.min(baseVol * multV, 1.0);
+        
+        // A MÁGICA: O vídeo acompanha a velocidade global da interface
+        img.playbackRate = window.playbackSpeed || 1.0;
         
         if (isPlaying) {
             if (img.paused) {
@@ -2970,29 +2992,63 @@ window.mudarQualidadePreview = function(btnElement, escala, fps, noTransitions) 
     }
 };
 
-// Injetar o botão de Configuração no HTML Dinamicamente (Com as novas resoluções)
+window.playbackSpeed = 1.0;
+window.mudarVelocidade = function(speed) {
+    window.playbackSpeed = parseFloat(speed);
+    document.getElementById('btnSpeedLabel').innerText = speed + 'x';
+    
+    // Atualiza as cores do menu
+    document.querySelectorAll('.btn-speed').forEach(b => b.style.color = 'var(--text-muted)');
+    event.currentTarget.style.color = 'var(--primary-cyan)';
+    
+    // Se estiver tocando, reinicia as agulhas para aplicar a nova velocidade sem engasgar
+    if (isPlaying) {
+        AudioEngine.pausar();
+        AudioEngine.tocar();
+    }
+};
+
+// Injetar os botões (Desempenho e Velocidade) dinamicamente
 setTimeout(() => {
     const controlsCenter = document.querySelector('.player-controls-center');
     if(controlsCenter && !document.getElementById('menuDesempenho')) {
         controlsCenter.insertAdjacentHTML('afterend', `
-            <div style="position: relative; display: flex; align-items: center; margin-left: 10px;">
-                <button class="player-btn" onclick="event.stopPropagation(); document.getElementById('menuDesempenho').classList.toggle('select-show')" title="Desempenho do Preview">
-                    <i class="ph ph-gauge"></i>
-                </button>
-                <div class="select-items context-menu" id="menuDesempenho" style="bottom: 120%; top: auto; right: 0; left: auto; width: 200px; padding: 10px;" onclick="event.stopPropagation();">
-                    <p style="margin: 0 0 10px 0; font-size: 0.8em; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Qualidade de Reprodução</p>
-                    
-                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.44, 0, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid var(--primary-cyan); color: var(--primary-cyan); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
-                        <i class="ph-fill ph-monitor-play"></i> Máxima (480p, Fluido)
+            <div style="position: relative; display: flex; align-items: center; margin-left: 10px; gap: 5px;">
+                
+                <div style="position: relative; display: flex; align-items: center;">
+                    <button class="player-btn" style="width: 50px; font-weight: bold; font-family: monospace; font-size: 0.85em;" onclick="event.stopPropagation(); document.getElementById('menuVelocidade').classList.toggle('select-show')" title="Velocidade de Reprodução">
+                        <span id="btnSpeedLabel">1x</span>
                     </button>
-                    
-                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.33, 30, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
-                        <i class="ph ph-rocket"></i> Equilibrada (360p, 30fps)
+                    <div class="select-items context-menu" id="menuVelocidade" style="bottom: 120%; top: auto; right: 0; left: auto; width: 120px; padding: 10px;" onclick="event.stopPropagation();">
+                        <p style="margin: 0 0 10px 0; font-size: 0.8em; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Velocidade</p>
+                        <button class="btn-speed" onclick="mudarVelocidade(0.25); document.getElementById('menuVelocidade').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">0.25x</button>
+                        <button class="btn-speed" onclick="mudarVelocidade(0.5); document.getElementById('menuVelocidade').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">0.5x</button>
+                        <button class="btn-speed" onclick="mudarVelocidade(1); document.getElementById('menuVelocidade').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--primary-cyan); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">1x (Normal)</button>
+                        <button class="btn-speed" onclick="mudarVelocidade(1.5); document.getElementById('menuVelocidade').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">1.5x</button>
+                        <button class="btn-speed" onclick="mudarVelocidade(2); document.getElementById('menuVelocidade').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">2x</button>
+                        <button class="btn-speed" onclick="mudarVelocidade(4); document.getElementById('menuVelocidade').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">4x</button>
+                    </div>
+                </div>
+
+                <div style="position: relative; display: flex; align-items: center;">
+                    <button class="player-btn" onclick="event.stopPropagation(); document.getElementById('menuDesempenho').classList.toggle('select-show')" title="Desempenho do Preview">
+                        <i class="ph ph-gauge"></i>
                     </button>
-                    
-                    <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.22, 15, true); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.85em;">
-                        <i class="ph ph-warning-circle"></i> PC Fraco (240p, Sem Efeitos)
-                    </button>
+                    <div class="select-items context-menu" id="menuDesempenho" style="bottom: 120%; top: auto; right: 0; left: auto; width: 200px; padding: 10px;" onclick="event.stopPropagation();">
+                        <p style="margin: 0 0 10px 0; font-size: 0.8em; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Qualidade de Reprodução</p>
+                        
+                        <button class="btn-perf" onclick="mudarQualidadePreview(this, 1.0, 0, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid var(--primary-cyan); color: var(--primary-cyan); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
+                            <i class="ph-fill ph-monitor-play"></i> Máxima (480p, Fluido)
+                        </button>
+                        
+                        <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.33, 30, false); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px; text-align: left; font-size: 0.85em;">
+                            <i class="ph ph-rocket"></i> Equilibrada (360p, 30fps)
+                        </button>
+                        
+                        <button class="btn-perf" onclick="mudarQualidadePreview(this, 0.22, 15, true); document.getElementById('menuDesempenho').classList.remove('select-show')" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.85em;">
+                            <i class="ph ph-warning-circle"></i> PC Fraco (240p, Sem Efeitos)
+                        </button>
+                    </div>
                 </div>
             </div>
         `);
