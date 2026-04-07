@@ -45,6 +45,8 @@ window.atualizarAgrupamentoVisual = function() {
     });
 };
 
+
+
 // --- MOTOR DE DESEMPENHO ADAPTATIVO ---
 window.ConfigPreview = {
     escala: 1.0,        // 1.0 = Original, 0.5 = Metade (Mais rápido), 0.25 = Batata Mode
@@ -130,7 +132,10 @@ const OPCOES_ANIMACAO = [
     { id: 'auto', icone: 'ph-robot', label: 'Aleatório' },
     { id: 'zoom_in', icone: 'ph-magnifying-glass-plus', label: 'Zoom In' },
     { id: 'zoom_out', icone: 'ph-magnifying-glass-minus', label: 'Zoom Out' },
-    { id: 'pan', icone: 'ph-arrows-left-right', label: 'Pan' },
+    { id: 'pan_direita', icone: 'ph-arrow-right', label: 'Pan Direita' },
+    { id: 'pan_esquerda', icone: 'ph-arrow-left', label: 'Pan Esquerda' },
+    { id: 'pan_cima', icone: 'ph-arrow-up', label: 'Pan Cima' },
+    { id: 'pan_baixo', icone: 'ph-arrow-down', label: 'Pan Baixo' },
     { id: 'nenhuma', icone: 'ph-stop-circle', label: 'Parada' }
 ];
 
@@ -400,7 +405,7 @@ const WebGLRenderer = {
     }
 };
 
-function getAnimacao(cena, idx) { if (cena.animacao && cena.animacao !== 'auto') return cena.animacao; if (cena.quadros_foco && cena.quadros_foco.length >= 5) return 'nenhuma'; const anims = ['zoom_in', 'zoom_out', 'pan']; return anims[idx % anims.length]; }
+function getAnimacao(cena, idx) { if (cena.animacao && cena.animacao !== 'auto') return cena.animacao; if (cena.quadros_foco && cena.quadros_foco.length >= 5) return 'nenhuma'; const anims = ['zoom_in', 'zoom_out', 'pan_direita', 'pan_esquerda', 'pan_cima', 'pan_baixo']; return anims[idx % anims.length]; }
 function getTransicao(cena, idx) { if (cena.transicao && cena.transicao !== 'auto') return cena.transicao; const transKeys = Object.keys(GLSL_FRAGMENTS).filter(k => k !== 'none'); return transKeys[idx % transKeys.length]; }
 
 const AudioEngine = {
@@ -1419,32 +1424,69 @@ function renderizarCenaBase(ctxAlvo, canvasRef, cenaRaw, img, t_local, duracao_c
     
     let progresso = calculateEasedProgress(progressoCru, animStart, animEnd, easing);
     
-    let fx = 0.5, fy = 0.5; if (cenaRaw.quadros_foco && cenaRaw.quadros_foco.length > 0) { let cxTotal = 0, cyTotal = 0; cenaRaw.quadros_foco.forEach(q => { let row = Math.floor((q - 1) / 3); let col = (q - 1) % 3; cxTotal += (col * (1/3)) + (1/6); cyTotal += (row * (1/3)) + (1/6); }); fx = cxTotal / cenaRaw.quadros_foco.length; fy = cyTotal / cenaRaw.quadros_foco.length; }
-    
     let midiaW = isVideo ? img.videoWidth : img.width;
     let midiaH = isVideo ? img.videoHeight : img.height;
     
-    let scaleX = canvasRef.width / midiaW; let scaleY = canvasRef.height / midiaH; let baseScale = Math.max(scaleX, scaleY);
-    let drawW = midiaW * baseScale; let drawH = midiaH * baseScale;
-    let imgCenterX = drawW * fx; let imgCenterY = drawH * fy;
-    let targetX = (canvasRef.width / 2) - imgCenterX; let targetY = (canvasRef.height / 2) - imgCenterY;
-    let finalX = Math.max(canvasRef.width - drawW, Math.min(0, targetX)); let finalY = Math.max(canvasRef.height - drawH, Math.min(0, targetY));
-
+    let scaleX = canvasRef.width / midiaW; 
+    let scaleY = canvasRef.height / midiaH; 
+    
+    let isFit = cenaRaw.imagem_completa || false;
+    let baseScale = isFit ? Math.min(scaleX, scaleY) : Math.max(scaleX, scaleY);
+    
     let modo = getAnimacao(cenaRaw, cenaRaw.id); 
     let zoomPadrao = cenaRaw.zoom_intensity !== undefined ? cenaRaw.zoom_intensity : 0.15;
-    let currentScale = 1.0; let panOffsetX = 0, panOffsetY = 0;
+    let currentScale = 1.0; 
     
-    if (modo === 'zoom_in') { 
-        currentScale = 1.0 + (zoomPadrao * progresso); 
-    } else if (modo === 'zoom_out') { 
-        currentScale = (1.0 + zoomPadrao) - (zoomPadrao * progresso); 
-    } else if (modo === 'pan') { 
-        currentScale = 1.15; 
-        let offsetMax = canvasRef.width * 0.05; 
-        panOffsetX = -offsetMax + (offsetMax * 2) * progresso; 
+    if (modo === 'zoom_in') currentScale = 1.0 + (zoomPadrao * progresso); 
+    else if (modo === 'zoom_out') currentScale = (1.0 + zoomPadrao) - (zoomPadrao * progresso); 
+    else if (modo.startsWith('pan_')) currentScale = 1.15;
+    
+    let drawW = midiaW * baseScale * currentScale; 
+    let drawH = midiaH * baseScale * currentScale;
+    
+    let fx = 0.5, fy = 0.5; 
+    if (cenaRaw.quadros_foco && cenaRaw.quadros_foco.length > 0) { 
+        let minX = 1.0, maxX = 0.0, minY = 1.0, maxY = 0.0;
+        let cxTotal = 0, cyTotal = 0; 
+        
+        cenaRaw.quadros_foco.forEach(q => { 
+            let row = Math.floor((q - 1) / 3); let col = (q - 1) % 3; 
+            let px = col * 0.5; let py = row * 0.5;
+            cxTotal += px; cyTotal += py; 
+            if (px < minX) minX = px; if (px > maxX) maxX = px;
+            if (py < minY) minY = py; if (py > maxY) maxY = py;
+        }); 
+        
+        fx = cxTotal / cenaRaw.quadros_foco.length; 
+        fy = cyTotal / cenaRaw.quadros_foco.length; 
+        
+        if (modo === 'pan_direita') fx = maxX;
+        else if (modo === 'pan_esquerda') fx = minX;
+        else if (modo === 'pan_cima') fy = minY; 
+        else if (modo === 'pan_baixo') fy = maxY; 
     }
-
-    ctxAlvo.save(); ctxAlvo.clearRect(0, 0, canvasRef.width, canvasRef.height); ctxAlvo.translate(canvasRef.width / 2, canvasRef.height / 2); ctxAlvo.scale(currentScale, currentScale); ctxAlvo.translate(-canvasRef.width / 2, -canvasRef.height / 2); ctxAlvo.translate(panOffsetX, panOffsetY); ctxAlvo.drawImage(img, finalX, finalY, drawW, drawH); ctxAlvo.restore();
+    
+    let slackX = Math.max(0, drawW - canvasRef.width);
+    let slackY = Math.max(0, drawH - canvasRef.height);
+    
+    // Se a imagem for menor que o canvas (bordas pretas), ela centraliza. Se for maior, trava nas paredes.
+    let endX = slackX > 0 ? Math.max(-slackX, Math.min(0, (canvasRef.width / 2) - (drawW * fx))) : (canvasRef.width - drawW) / 2;
+    let endY = slackY > 0 ? Math.max(-slackY, Math.min(0, (canvasRef.height / 2) - (drawH * fy))) : (canvasRef.height - drawH) / 2;
+    
+    let targetX = endX;
+    let targetY = endY;
+    
+    // O Pan só acontece no eixo que realmente possui espaço de "folga" escondida.
+    if (modo === 'pan_direita' && slackX > 0) targetX = 0 + (endX - 0) * progresso;               
+    else if (modo === 'pan_esquerda' && slackX > 0) targetX = -slackX + (endX - (-slackX)) * progresso; 
+    else if (modo === 'pan_baixo' && slackY > 0) targetY = 0 + (endY - 0) * progresso;               
+    else if (modo === 'pan_cima' && slackY > 0) targetY = -slackY + (endY - (-slackY)) * progresso;
+    
+    // 7. Renderiza na coordenada correta
+    ctxAlvo.save(); 
+    ctxAlvo.clearRect(0, 0, canvasRef.width, canvasRef.height); 
+    ctxAlvo.drawImage(img, targetX, targetY, drawW, drawH); 
+    ctxAlvo.restore();
 }
 
 function renderCanvas(tempoSegundos) {
@@ -2288,6 +2330,14 @@ function atualizarPainel(idx) {
         </div>
         <div id="advContent" class="advanced-content" style="display: ${window._advMenuOpen ? 'block' : 'none'};">`;
     
+    let isFit = cena.imagem_completa || false;
+    html += `
+        <label style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; margin-bottom:15px; text-transform:none; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+            <input type="checkbox" id="fitModeCheck" ${isFit ? 'checked' : ''} onchange="updateFitMode(${idx}, this.checked)"> 
+            Mostrar Imagem Completa (Bordas Pretas)
+        </label>
+    `;
+
     if (isResolvedZoom) {
         let zoomVal = cena.zoom_intensity !== undefined ? cena.zoom_intensity : 0.15;
         html += `
@@ -2962,6 +3012,13 @@ window.mostrarVideoPronto = function(url) {
     player.load();
     
     document.getElementById('btnDownloadFinal').href = url;
+};
+
+window.updateFitMode = function(idx, isFit) {
+    projetoAtual.cenas[idx].imagem_completa = isFit;
+    pushHistory(); 
+    sincronizarJSON(); 
+    renderCanvas(AudioEngine.obterTempoAtual());
 };
 
 // O padrão de inicialização agora é 480p (0.44)
