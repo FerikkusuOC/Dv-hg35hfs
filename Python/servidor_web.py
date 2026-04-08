@@ -7,8 +7,9 @@ import shutil
 import time
 import re
 import subprocess
+import zipfile
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 import motor_video
 from PIL import Image, ImageOps 
 
@@ -467,3 +468,115 @@ def upload_musica():
     file.save(caminho_salvo)
     
     return jsonify({"status": "ok", "arquivo": f"musicas/Personalizado/{filename}", "titulo": filename, "clima": "Personalizado"})
+
+# =====================================================================
+# SISTEMA DE ARQUIVOS .MINDKUT (EXPORTAR / IMPORTAR)
+# =====================================================================
+
+STATUS_EXPORTACAO = {"progresso": 0, "estado": "ocioso", "arquivo": ""}
+
+def _gerar_zip_projeto(nome_zip):
+    global STATUS_EXPORTACAO
+    STATUS_EXPORTACAO = {"progresso": 0, "estado": "processando", "arquivo": ""}
+    
+    # Normaliza os nomes para o SO atual (Windows/Linux)
+    pastas_alvo = [os.path.normpath(p) for p in ["entrada", "imagens finais", "midia_projeto", "musicas/personalizado", "temp_imagens"]]
+    arquivos_alvo = ["estado_projeto.json"]
+    
+    # 1. Mapeamento inicial de arquivos para garantir que nada seja esquecido
+    lista_para_zipar = []
+    for arq in arquivos_alvo:
+        if os.path.exists(arq):
+            lista_para_zipar.append(arq)
+    
+    for pasta in pastas_alvo:
+        if os.path.exists(pasta):
+            # O os.walk percorre inclusive subpastas criadas pela IA ou usuário
+            for root, _, files in os.walk(pasta):
+                for f in files:
+                    caminho_completo = os.path.join(root, f)
+                    lista_para_zipar.append(caminho_completo)
+    
+    total = len(lista_para_zipar)
+    if total == 0: total = 1 # Evita divisão por zero
+    
+    os.makedirs("Saida", exist_ok=True)
+    caminho_zip = os.path.join("Saida", f"{nome_zip}.mindkut")
+    
+    try:
+        # 2. Empacotamento real
+        with zipfile.ZipFile(caminho_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for i, caminho_arquivo in enumerate(lista_para_zipar):
+                # Mantém a estrutura de pastas idêntica ao projeto original
+                arcname = os.path.relpath(caminho_arquivo, start=".")
+                zipf.write(caminho_arquivo, arcname)
+                
+                # Atualiza o progresso para a barra de interface
+                STATUS_EXPORTACAO["progresso"] = int(((i + 1) / total) * 100)
+                
+        STATUS_EXPORTACAO["progresso"] = 100
+        STATUS_EXPORTACAO["estado"] = "concluido"
+        STATUS_EXPORTACAO["arquivo"] = caminho_zip
+        print(f"      [SUCESSO] Projeto '{nome_zip}' exportado com {total} arquivos.")
+        
+    except Exception as e:
+        STATUS_EXPORTACAO["estado"] = "erro"
+        print(f"      [ERRO] Falha ao exportar projeto: {e}")
+
+@app.route('/api/iniciar_exportacao', methods=['POST'])
+def iniciar_exportacao():
+    dados = request.json
+    nome = dados.get('nome', 'Meu_Projeto')
+    # Limpa caracteres inválidos para evitar erro no Windows/Linux
+    nome = re.sub(r'[^\w\s-]', '', nome).strip().replace(' ', '_')
+    if not nome: nome = "Projeto_MindKut"
+    threading.Thread(target=_gerar_zip_projeto, args=(nome,)).start()
+    return jsonify({"status": "iniciado"})
+
+@app.route('/api/status_exportacao', methods=['GET'])
+def status_exportacao():
+    return jsonify(STATUS_EXPORTACAO)
+
+@app.route('/api/download_projeto')
+def download_projeto():
+    caminho = request.args.get('arquivo')
+    
+    if caminho and os.path.exists(caminho):
+        # Converte o caminho relativo para o caminho absoluto seguro do sistema
+        caminho_absoluto = os.path.abspath(caminho)
+        try:
+            return send_file(caminho_absoluto, as_attachment=True)
+        except Exception as e:
+            return f"Erro interno ao tentar enviar o arquivo: {str(e)}", 500
+            
+    return "Arquivo de projeto não encontrado no servidor.", 404
+
+@app.route('/api/importar_projeto', methods=['POST'])
+def importar_projeto():
+    if 'file' not in request.files: return jsonify({"erro": "Nenhum arquivo enviado"}), 400
+    file = request.files['file']
+    if file.filename == '': return jsonify({"erro": "Nome de arquivo vazio"}), 400
+    
+    temp_zip = "temp_import.mindkut"
+    file.save(temp_zip)
+    
+    # 1. Limpeza Agressiva: Apaga o projeto antigo da memória e do disco
+    pastas_alvo = ["entrada", "imagens finais", "midia_projeto", "musicas/personalizado", "temp_imagens"]
+    for pasta in pastas_alvo:
+        if os.path.exists(pasta):
+            shutil.rmtree(pasta)
+        os.makedirs(pasta, exist_ok=True)
+        
+    # 2. Descompactação do novo projeto
+    with zipfile.ZipFile(temp_zip, 'r') as zipf:
+        zipf.extractall(".")
+        
+    os.remove(temp_zip)
+    
+    # 3. Recarrega o estado em memória para o Python
+    global PROJETO_ATUAL
+    if os.path.exists("estado_projeto.json"):
+        with open("estado_projeto.json", "r", encoding="utf-8") as f:
+            PROJETO_ATUAL = json.load(f)
+            
+    return jsonify({"status": "ok"})
