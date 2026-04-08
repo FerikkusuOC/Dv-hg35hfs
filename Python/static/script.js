@@ -187,6 +187,13 @@ function redo() {
 }
 
 document.addEventListener('keydown', function(e) {
+    // 1. Intercepta o Salvar Projeto antes de qualquer outra coisa (bloqueia o "Salvar Página" do navegador)
+    if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { 
+        e.preventDefault(); 
+        abrirModalExportar(); 
+        return; 
+    }
+
     if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') return;
 
     if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
@@ -3126,4 +3133,162 @@ setTimeout(() => {
     }
 }, 1000);
 
+// =====================================================================
+// SISTEMA DE ARQUIVOS .MINDKUT (INTERFACE)
+// =====================================================================
+
+window.abrirModalExportar = function() {
+    document.getElementById('modalExportarProjeto').style.display = 'flex';
+    document.getElementById('areaProgressoExport').style.display = 'none';
+    document.getElementById('botoesExportProjeto').style.display = 'flex';
+    document.getElementById('inputNomeProjeto').value = "Meu_Projeto_" + Math.floor(Math.random() * 1000);
+};
+
+window.fecharModalExportar = function() {
+    document.getElementById('modalExportarProjeto').style.display = 'none';
+};
+
+let exportInterval = null;
+window.iniciarExportacaoProjeto = async function() {
+    let nome = document.getElementById('inputNomeProjeto').value;
+    document.getElementById('botoesExportProjeto').style.display = 'none';
+    document.getElementById('areaProgressoExport').style.display = 'block';
+    document.getElementById('barraProgressoExport').style.width = '0%';
+    
+    await fetch('/api/iniciar_exportacao', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({nome: nome})
+    });
+    
+    exportInterval = setInterval(checarStatusExportacao, 1000);
+};
+
+async function checarStatusExportacao() {
+    try {
+        let res = await fetch('/api/status_exportacao');
+        let data = await res.json();
+        
+        document.getElementById('barraProgressoExport').style.width = data.progresso + '%';
+        document.getElementById('statusExportTxt').innerText = "Empacotando arquivos... " + data.progresso + "%";
+        
+        if(data.estado === 'concluido') {
+            clearInterval(exportInterval);
+            fecharModalExportar();
+            // Dispara o download nativo do navegador
+            window.location.href = '/api/download_projeto?arquivo=' + encodeURIComponent(data.arquivo);
+        }
+    } catch(e) {}
+}
+
+window.abrirModalAvisoImportacao = function() {
+    document.getElementById('modalAvisoImportacao').style.display = 'flex';
+};
+
+window.iniciarImportacaoProjeto = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('modalAvisoImportacao').style.display = 'none';
+    document.getElementById('modalProgressoImportacao').style.display = 'flex';
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/importar_projeto", true);
+    
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            let percent = (e.loaded / e.total) * 100;
+            document.getElementById('barraProgressoImport').style.width = percent + '%';
+        }
+    };
+    
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            // O jeito mais limpo de carregar o projeto novo sem vazar dados antigos da memória: Dar um F5 brutal!
+            window.location.reload();
+        } else {
+            alert("Erro ao descompactar e importar o projeto no servidor.");
+            document.getElementById('modalProgressoImportacao').style.display = 'none';
+        }
+    };
+    xhr.send(formData);
+    event.target.value = '';
+};
+
+// Injetar Menus e Pop-ups na Tela Dinamicamente
+setTimeout(() => {
+    // 1. Injetar Botão de Três Pontinhos ao lado de Exportar Vídeo
+    const btnRender = document.querySelector('button[onclick="abrirModalPreRender()"]');
+    if (btnRender && !document.getElementById('menuProjetoMindkut')) {
+        btnRender.insertAdjacentHTML('afterend', `
+            <div style="position: relative; display: inline-flex; align-items: center; margin-left: 5px;">
+                <button onclick="event.stopPropagation(); document.getElementById('menuProjetoMindkut').classList.toggle('select-show')" style="background: transparent; border: none; color: white; font-size: 1.4rem; padding: 6px 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'" onmouseout="this.style.backgroundColor='transparent'" title="Opções do Projeto">
+                    <i class="ph-fill ph-dots-three-outline-vertical"></i>
+                </button>
+                <div class="select-items context-menu" id="menuProjetoMindkut" style="top: 120%; right: 0; left: auto; width: 190px; padding: 10px;" onclick="event.stopPropagation();">
+                    <button class="btn-perf" onclick="abrirModalExportar(); document.getElementById('menuProjetoMindkut').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">
+                        <i class="ph ph-floppy-disk"></i> Salvar Projeto (Ctrl+S)
+                    </button>
+                    <button class="btn-perf" onclick="abrirModalAvisoImportacao(); document.getElementById('menuProjetoMindkut').classList.remove('select-show')" style="width: 100%; background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; text-align: left; font-size: 0.85em;">
+                        <i class="ph ph-folder-open"></i> Importar Projeto
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+    
+    // 2. Injetar os Pop-ups invisíveis no Body
+    if (!document.getElementById('modalExportarProjeto')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modalExportarProjeto" class="modal-overlay" style="display: none; z-index: 9999;">
+                <div class="modal-content" style="max-width: 400px; width: 90%; text-align: center; box-sizing: border-box; overflow: hidden;">
+                    <h3 style="margin-top:0; color: var(--primary-cyan); text-align: center;"><i class="ph ph-floppy-disk"></i> Salvar Projeto</h3>
+                    <p style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 20px;">O projeto será compactado e salvo no formato .mindkut</p>
+                    
+                    <input type="text" id="inputNomeProjeto" placeholder="Nome do Projeto" style="width: 100%; padding: 10px; background: #111; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 4px; margin-bottom: 20px; font-family: monospace; box-sizing: border-box;">
+                    
+                    <div id="areaProgressoExport" style="display: none; margin-bottom: 20px;">
+                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px;" id="statusExportTxt">Empacotando arquivos... 0%</div>
+                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                            <div id="barraProgressoExport" style="width: 0%; height: 100%; background: var(--primary-cyan); transition: width 0.2s;"></div>
+                        </div>
+                    </div>
+                    
+                   <div style="display: flex; gap: 10px; justify-content: center; align-items: center;" id="botoesExportProjeto">
+                        <button class="btn-preview" onclick="fecharModalExportar()">Cancelar</button>
+                        <button class="btn-outline" onclick="iniciarExportacaoProjeto()"><i class="ph ph-floppy-disk"></i> Salvar</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="modalAvisoImportacao" class="modal-overlay" style="display: none; z-index: 9999;">
+                <div class="modal-content" style="max-width: 400px; width: 90%; text-align: center; box-sizing: border-box; overflow: hidden;">
+                    <h3 style="margin-top:0; color: #ef4444; text-align: center;"><i class="ph ph-warning-circle"></i> Atenção!</h3>
+                    <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 20px;">Importar um projeto irá <b>apagar e substituir</b> completamente o projeto atual e todas as mídias da timeline.</p>
+                    <p style="font-size: 0.85em; color: white; margin-bottom: 20px;">Certifique-se de ter salvo o projeto atual antes de prosseguir!</p>
+                    
+                    <div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
+                        <button class="btn-preview" onclick="document.getElementById('modalAvisoImportacao').style.display='none'">Cancelar</button>
+                        <button class="btn-outline" onclick="document.getElementById('fileImportarProjeto').click();"><i class="ph ph-folder-open"></i> Importar</button>
+                    </div>
+                    <input type="file" id="fileImportarProjeto" accept=".mindkut" style="display: none;" onchange="iniciarImportacaoProjeto(event)">
+                </div>
+            </div>
+
+            <div id="modalProgressoImportacao" class="modal-overlay" style="display: none; z-index: 9999;">
+                <div class="modal-content" style="max-width: 400px; width: 90%; text-align: center; box-sizing: border-box;">
+                    <h3 style="margin-top:0; color: var(--primary-cyan); text-align: center;"><i class="ph ph-spinner-gap ph-spin"></i> Importando Projeto</h3>
+                    <p style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 20px;">Fazendo upload e descompactando assets no sistema...</p>
+                    
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 10px;">
+                        <div id="barraProgressoImport" style="width: 0%; height: 100%; background: var(--primary-cyan); transition: width 0.2s;"></div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+}, 1200);
 window.onload = inicializar;
