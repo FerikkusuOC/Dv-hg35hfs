@@ -290,12 +290,15 @@ def construir_esqueleto_matematico(palavras, entidades_alvo, tempo_por_cena=3.0)
             if id_start > id_end: id_start = id_end
                 
             texto_cena = " ".join([p['palavra'] for p in palavras[id_start:id_end+1]])
+            dur = palavras[id_end]['fim'] - palavras[id_start]['inicio']
+            bpm = int((((id_end - id_start) + 1) / dur * 60)) if dur > 0 else 120
             
             esqueleto_cenas.append({
                 "id_cena": id_cena_global,
                 "id_inicio": id_start,
                 "id_fim": id_end,
                 "texto": texto_cena,
+                "bgm_bpm": bpm, # A IA AGORA VÊ O BPM!
                 "query": "", 
             })
             id_cena_global += 1
@@ -319,12 +322,15 @@ def construir_esqueleto_matematico(palavras, entidades_alvo, tempo_por_cena=3.0)
         else: j = max(i, j - 1)
             
         texto_cena = " ".join([p['palavra'] for p in palavras[id_start:j+1]])
+        dur = palavras[j]['fim'] - palavras[id_start]['inicio']
+        bpm = int((((j - id_start) + 1) / dur * 60)) if dur > 0 else 120
         
         esqueleto_cenas.append({
             "id_cena": id_cena_global,
             "id_inicio": id_start,
             "id_fim": j,
             "texto": texto_cena,
+            "bgm_bpm": bpm, # A IA AGORA VÊ O BPM!
             "query": "", 
         })
         id_cena_global += 1
@@ -339,11 +345,11 @@ def calcular_matematica_musical(cenas, palavras):
         duracao = palavras[id_out]['fim'] - palavras[id_in]['inicio']
         qtde_palavras = (id_out - id_in) + 1
         
-        # PYTHON DECIDE O BPM
+        # Recálculo de segurança
         ritmo_10s = (qtde_palavras / duracao) * 10 if duracao > 0 else 20
         cena['bgm_bpm'] = int(ritmo_10s * 6)
         
-        # Mantemos o Mood da IA intacto. Se ela falhou, colocamos Neutro.
+        # Fallback caso a IA omita (Sem o bgm_genre)
         if 'bgm_mood' not in cena or not cena['bgm_mood']:
             cena['bgm_mood'] = "Neutro"
         
@@ -378,6 +384,26 @@ def transcrever_e_direcionar(audio_path, tempo_alvo=3.0):
     # ---------------------------------------------------------
     tema_lower = contexto_geral.lower()
     
+    # A Matriz de Decisão de Áudio (Injetada em todos os prompts)
+    regras_audio = """5. MUSIC MOOD SELECTION (CRITICAL): You MUST choose EXACTLY ONE mood from the list below based on the text's semantic tone AND the "bgm_bpm" (speaker's pacing).
+   - THE 10 ALLOWED MOODS: 
+     * Raiva (Combat, aggression, enemies attacking)
+     * Animado (Hype, fast action, training, excitement)
+     * Calmo (Exposition, peaceful moments, explanations)
+     * Sombrio (Villains, dark secrets, tension, mystery)
+     * Dramático (Plot twists, shocking revelations, intense arguments)
+     * Vibrante (Magic, transformations, high energy peaks)
+     * Alegre (Happy endings, comedy, friendship)
+     * Inspirador (Heroic speeches, motivation, overcoming limits)
+     * Romântico (Love, soft emotional connections)
+     * Melancólico (Death, sadness, tragic pasts, defeat)
+   - THE BPM MATRIX: 
+     * High BPM (>140) + Negative Text = "Raiva" or "Dramático".
+     * High BPM (>140) + Positive Text = "Animado" or "Vibrante".
+     * Low BPM (<110) + Negative Text = "Sombrio" or "Melancólico".
+     * Low BPM (<110) + Positive Text = "Calmo" or "Inspirador".
+   - CONTINUITY: Maintain the SAME mood for consecutive scenes to avoid chaotic music changes, UNLESS the story clearly shifts to a new emotion."""
+
     if "naruto" in tema_lower or "boruto" in tema_lower:
         prompt_template = f"""You are a Master Art Director for a Naruto/Boruto YouTube channel. Read this JSON array sequentially. 
 YOUR TASK: Fill BOTH the "query" and "bgm_mood" fields for each object.
@@ -390,17 +416,14 @@ STRICT RULES (FAILURE DESTROYS THE VIDEO):
 3. THEMATIC ANCHORING (CRITICAL):
    - You MUST append the specific era suffix based on the exact event in the text: "Naruto Classic", "Naruto Shippuden", "Boruto anime", or "Boruto TBV".
    - If you don't know the era, append "{contexto_geral}".
-4. PRONOUN RESOLUTION & ZERO ABSTRACTIONS: 
-   - Replace "he/him" with the actual character name based on the ongoing text. 
-   - Replace abstract queries (like "data" or "truth") with tangible actions (e.g., "Orochimaru sinister smile").
-   - NEVER group characters (e.g., NO "Kakashi and Naruto").
-5. BGM MOOD: You MUST choose EXACTLY ONE mood from this list: Raiva, Animado, Calmo, Sombrio, Dramático, Vibrante, Alegre, Inspirador, Romântico, Melancólico. Keep consecutive scenes with the same mood unless the emotion clearly shifts.
+4. PRONOUN RESOLUTION & ZERO ABSTRACTIONS: Replace pronouns with character names. Replace abstract queries with tangible actions.
+{regras_audio}
 6. THE HOOK RULE: For "id_cena" 0, 1, or 2, the query MUST be exactly the MAIN SUBJECT of the video followed by the era.
 
 FEW-SHOT EXAMPLES:
-- Text (id_cena: 0): "Tudo começou há muito tempo..." -> Query: "[Main Subject] {contexto_geral}", Mood: "Sombrio"
-- Text (id_cena: 45): "Orochimaru matou o terceiro Hokage" -> Query: "Orochimaru kills Hiruzen Naruto Classic", Mood: "Raiva"
-- Text (id_cena: 47): "os dados coletados por Yamato" -> Query: "Yamato face Naruto Shippuden", Mood: "Dramático"
+- Text: "A morte de Jiraiya devastou a vila" | BPM: 90 -> Query: "Jiraiya death Naruto Shippuden", Mood: "Melancólico"
+- Text: "Naruto e Sasuke correm para o ataque" | BPM: 160 -> Query: "Naruto Sasuke running attack Naruto Shippuden", Mood: "Animado"
+- Text: "Madara aparece no topo do penhasco" | BPM: 110 -> Query: "Madara Uchiha cliff Naruto Shippuden", Mood: "Sombrio"
 
 JSON TO FILL:
 {{json_payload}}
@@ -417,13 +440,14 @@ STRICT RULES:
 1. LANGUAGE: STRICTLY ENGLISH for "query". 
 2. NO FLUFF: BANNED WORDS: "lore", "epic", "scene", "anime", "sad", "emotional", "background", "concept". Use ONLY raw physical nouns/actions.
 3. MANDATORY ANCHORING: EVERY single query MUST end with the exact franchise name (e.g. "{contexto_geral}").
-4. PRONOUN RESOLUTION & ZERO ABSTRACTIONS: Replace pronouns with character names. Replace abstract thoughts with physical actions (e.g., "thinking character {contexto_geral}").
-5. BGM MOOD: You MUST choose EXACTLY ONE mood from this list: Raiva, Animado, Calmo, Sombrio, Dramático, Vibrante, Alegre, Inspirador, Romântico, Melancólico. 
+4. PRONOUN RESOLUTION & ZERO ABSTRACTIONS: Replace pronouns with character names. Replace abstract thoughts with physical actions.
+{regras_audio}
 6. THE HOOK RULE: For "id_cena" 0, 1, or 2, the query MUST be exactly the MAIN SUBJECT of the video followed by the franchise.
 
-FEW-SHOT EXAMPLES (Assuming Context is Bleach):
-- Text (id_cena: 0): "Bem vindos ao canal..." -> Query: "Ichigo Kurosaki Bleach", Mood: "Animado"
-- Text (id_cena: 45): "uma batalha sangrenta ocorreu" -> Query: "sword fight Bleach", Mood: "Raiva"
+FEW-SHOT EXAMPLES:
+- Text: "O passado dele foi cheio de dor" | BPM: 95 -> Query: "crying character {contexto_geral}", Mood: "Melancólico"
+- Text: "Ele saca a espada pronto para matar" | BPM: 155 -> Query: "drawing sword fight {contexto_geral}", Mood: "Raiva"
+- Text: "A cidade estava finalmente em paz" | BPM: 105 -> Query: "city landscape {contexto_geral}", Mood: "Calmo"
 
 JSON TO FILL:
 {{json_payload}}
@@ -440,13 +464,14 @@ STRICT RULES:
 1. LANGUAGE: STRICTLY ENGLISH for "query". 
 2. NO FLUFF: BANNED WORDS: "lore", "epic", "scene", "sad", "emotional", "background", "concept", "illustration", "4k". Use ONLY raw physical nouns/actions.
 3. MANDATORY ANCHORING: EVERY single query MUST end with the topic: "{contexto_geral}".
-4. HIGHLY VISUAL REALISM: Translate abstract text into physical, tangible real-world objects or people. NEVER use abstract queries like "economy". Use "stock market crash".
-5. BGM MOOD: You MUST choose EXACTLY ONE mood from this list: Raiva, Animado, Calmo, Sombrio, Dramático, Vibrante, Alegre, Inspirador, Romântico, Melancólico.
+4. HIGHLY VISUAL REALISM: Translate abstract text into physical, tangible real-world objects or people. NEVER use abstract queries.
+{regras_audio}
 6. THE HOOK RULE: For "id_cena" 0, 1, or 2, the query MUST be exactly the MAIN SUBJECT of the video followed by the topic.
 
-FEW-SHOT EXAMPLES (Assuming Context is Finance):
-- Text (id_cena: 0): "Hoje vamos falar sobre..." -> Query: "[Main Topic] Finance", Mood: "Inspirador"
-- Text (id_cena: 45): "a economia afundou rapidamente" -> Query: "stock market crash Finance", Mood: "Dramático"
+FEW-SHOT EXAMPLES:
+- Text: "A empresa perdeu bilhões da noite para o dia" | BPM: 150 -> Query: "stock market red crash Finance", Mood: "Dramático"
+- Text: "Hoje vamos explicar como a economia funciona" | BPM: 120 -> Query: "business chart Finance", Mood: "Calmo"
+- Text: "Com muito esforço, ele alcançou o topo" | BPM: 115 -> Query: "man climbing mountain success Finance", Mood: "Inspirador"
 
 JSON TO FILL:
 {{json_payload}}
@@ -458,7 +483,8 @@ OUTPUT ONLY THE COMPLETED JSON ARRAY."""
         fim_idx = inicio_idx + TAMANHO_LOTE
         lote_cenas = esqueleto[inicio_idx:fim_idx]
         
-        template_ia = [{"id_cena": c['id_cena'], "texto": c['texto'], "query": "", "bgm_mood": ""} for c in lote_cenas]
+        # O bgm_bpm é enviado, mas sem pedir bgm_genre de volta
+        template_ia = [{"id_cena": c['id_cena'], "texto": c['texto'], "bgm_bpm": c['bgm_bpm'], "query": "", "bgm_mood": ""} for c in lote_cenas]
         
         prompt_final = prompt_template.replace("{json_payload}", json.dumps(template_ia, ensure_ascii=False))
 
