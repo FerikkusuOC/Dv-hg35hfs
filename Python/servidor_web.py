@@ -480,7 +480,7 @@ def _gerar_zip_projeto(nome_zip):
     STATUS_EXPORTACAO = {"progresso": 0, "estado": "processando", "arquivo": ""}
     
     # Normaliza os nomes para o SO atual (Windows/Linux)
-    pastas_alvo = [os.path.normpath(p) for p in ["entrada", "imagens finais", "midia_projeto", "musicas/personalizado", "temp_imagens"]]
+    pastas_alvo = [os.path.normpath(p) for p in ["entrada", "Entrada", "imagens_finais", "midia_projeto", "musicas/personalizado", "temp_imagens"]]
     arquivos_alvo = ["estado_projeto.json"]
     
     # 1. Mapeamento inicial de arquivos para garantir que nada seja esquecido
